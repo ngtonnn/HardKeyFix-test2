@@ -26,10 +26,13 @@ jobs:
           unzip -q /tmp/sdks.zip -d /tmp/sdks_out
           mv /tmp/sdks_out/sdks-master/* $HOME/theos/sdks/
 
-      - name: Install ldid
+      - name: Build and install ldid
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq ldid
+          git clone https://github.com/ProcursusTeam/ldid.git /tmp/ldid
+          cd /tmp/ldid
+          make -j$(nproc)
+          cp ldid $HOME/theos/bin/ldid
+          chmod +x $HOME/theos/bin/ldid
 
       - name: Build .deb
         run: |
