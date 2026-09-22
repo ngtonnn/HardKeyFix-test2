@@ -75,7 +75,7 @@ static const CGFloat prefs_idleTimeout = 0.5;
             UILabel *lbl = nil;
             if (isMajor) {
                 lbl = [[UILabel alloc] init];
-                int volNum = (i * 100 / 40);
+                int volNum = isTop ? (i * 100 / 40) : (100 - (i * 100 / 40));
                 lbl.text = [NSString stringWithFormat:@"%d", volNum];
                 lbl.textColor = [UIColor whiteColor];
                 lbl.textAlignment = NSTextAlignmentCenter;
@@ -126,7 +126,7 @@ static const CGFloat prefs_idleTimeout = 0.5;
         _rulerView.transform = CGAffineTransformMakeTranslation(tx, 0);
     } else {
         CGFloat centerOffset = self.bounds.size.height / 2.0;
-        CGFloat ty = centerOffset - (volume * 600.0);
+        CGFloat ty = centerOffset - ((1.0 - volume) * 600.0);
         _rulerView.transform = CGAffineTransformMakeTranslation(0, ty);
     }
 }
@@ -386,14 +386,18 @@ static const CGFloat prefs_idleTimeout = 0.5;
         _currentVolume = _volumeSlider.value;
         _lastHapticStep = (int)(_currentVolume * 16.0);
         
-        CGRect dialFrame;
+                CGRect dialFrame;
         if (_currentEdge == HKFDockEdgeTop) {
             dialFrame = CGRectMake(0, 0, 260, 48);
         } else {
             dialFrame = CGRectMake(0, 0, 48, 260);
         }
         
-        _dialView = [[HKFDialView alloc] initWithFrame:dialFrame edge:_currentEdge];
+        if (!_dialView || _dialView.dockEdge != _currentEdge) {
+            [_dialView removeFromSuperview];
+            _dialView = [[HKFDialView alloc] initWithFrame:dialFrame edge:_currentEdge];
+            [self.floatingWindow.rootViewController.view insertSubview:_dialView belowSubview:_buttonView];
+        }
         
         if (_currentEdge == HKFDockEdgeTop) {
             _dialView.layer.anchorPoint = CGPointMake(0.5, 0.0);
@@ -408,11 +412,14 @@ static const CGFloat prefs_idleTimeout = 0.5;
 
         [_dialView setVolume:_currentVolume];
         
-        _dialView.transform = CGAffineTransformMakeScale(0.1, 0.1);
-        _dialView.alpha = 0.0;
-        [self.floatingWindow.rootViewController.view insertSubview:_dialView belowSubview:_buttonView];
+        if (_dialView.alpha == 0.0) {
+            _dialView.transform = CGAffineTransformMakeScale(0.1, 0.1);
+        }
         
-        [UIView animateWithDuration:0.3 delay:0 usingSpringWithDamping:0.7 initialSpringVelocity:0 options:UIViewAnimationOptionCurveEaseOut | UIViewAnimationOptionAllowUserInteraction animations:^{
+        [_dialView.layer removeAllAnimations];
+        [_buttonView.layer removeAllAnimations];
+        
+        [UIView animateWithDuration:0.3 delay:0 usingSpringWithDamping:0.7 initialSpringVelocity:0 options:UIViewAnimationOptionCurveEaseOut | UIViewAnimationOptionAllowUserInteraction | UIViewAnimationOptionBeginFromCurrentState animations:^{
             _dialView.transform = CGAffineTransformIdentity;
             _dialView.alpha = 1.0;
             _buttonView.alpha = 0.0;
@@ -449,14 +456,11 @@ static const CGFloat prefs_idleTimeout = 0.5;
         }
     }
     else {
-        [UIView animateWithDuration:0.3 delay:0 options:UIViewAnimationOptionAllowUserInteraction animations:^{
+                [UIView animateWithDuration:0.3 delay:0 options:UIViewAnimationOptionAllowUserInteraction | UIViewAnimationOptionBeginFromCurrentState animations:^{
             _dialView.transform = CGAffineTransformMakeScale(0.1, 0.1);
             _dialView.alpha = 0.0;
             _buttonView.alpha = 1.0;
-        } completion:^(BOOL finished) {
-            [_dialView removeFromSuperview];
-            _dialView = nil;
-        }];
+        } completion:nil];
         [self _resetIdleTimer];
     }
 }
@@ -558,3 +562,4 @@ static const CGFloat prefs_idleTimeout = 0.5;
     });
 }
 %end
+
