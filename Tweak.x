@@ -105,7 +105,7 @@ static const CGFloat prefs_sensitivity = 1.0;
             [_wheelView addSubview:blurView];
             
             CGFloat radius = frame.size.width / 2.0;
-            CGPoint center = CGPointMake(radius, radius);
+            
             
             for (int i = 0; i <= 40; i++) {
                 UIView *wrapper = [[UIView alloc] initWithFrame:self.bounds];
@@ -600,5 +600,6 @@ static const CGFloat prefs_sensitivity = 1.0;
     });
 }
 %end
+
 
 
