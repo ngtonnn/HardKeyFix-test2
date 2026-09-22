@@ -287,21 +287,31 @@ static const CGFloat prefs_sensitivity = 1.0;
 
 // --- Gestures ---
 - (void)_handleDoubleTap:(UITapGestureRecognizer *)gr {
-    [self _wakeUp];
     [self _resetIdleTimer];
     
-    SpringBoard *sb = (SpringBoard *)[UIApplication sharedApplication];
-    if ([sb respondsToSelector:@selector(screenshotManager)]) {
-        id manager = [sb screenshotManager];
-        if (manager && [manager respondsToSelector:@selector(saveScreenshotsWithCompletion:)]) {
-            [manager saveScreenshotsWithCompletion:nil];
-            return;
+    // Ẩn hoàn toàn giao diện của Tweak trước khi chụp
+    self.hidden = YES;
+    
+    // Đợi 0.1 giây để hệ thống kịp render việc ẩn nút
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        SpringBoard *sb = (SpringBoard *)[UIApplication sharedApplication];
+        if ([sb respondsToSelector:@selector(screenshotManager)]) {
+            id manager = [sb screenshotManager];
+            if (manager && [manager respondsToSelector:@selector(saveScreenshotsWithCompletion:)]) {
+                [manager saveScreenshotsWithCompletion:nil];
+            }
+        } else {
+            Class shotterClass = objc_getClass("SBScreenShotter");
+            if (shotterClass && [shotterClass respondsToSelector:@selector(sharedInstance)]) {
+                [[shotterClass sharedInstance] saveScreenshot:YES];
+            }
         }
-    }
-    Class shotterClass = objc_getClass("SBScreenShotter");
-    if (shotterClass && [shotterClass respondsToSelector:@selector(sharedInstance)]) {
-        [[shotterClass sharedInstance] saveScreenshot:YES];
-    }
+        
+        // Hiện lại nút sau khi máy đã chụp xong
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.4 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            self.hidden = NO;
+        });
+    });
 }
 
 - (void)_handleVolumePan:(UIPanGestureRecognizer *)gr {
