@@ -74,7 +74,7 @@ static const CGFloat prefs_sensitivity = 1.0;
                 
                 if (isMajor) {
                     UILabel *lbl = [[UILabel alloc] initWithFrame:CGRectMake(i * 15 - 15, 0, 32, 12)];
-                    int volNum = 100 - (i * 100 / 40);
+                    int volNum = (i * 100 / 40);
                     lbl.text = [NSString stringWithFormat:@"%d", volNum];
                     lbl.textColor = [UIColor whiteColor];
                     lbl.font = [UIFont boldSystemFontOfSize:10];
@@ -130,7 +130,7 @@ static const CGFloat prefs_sensitivity = 1.0;
                 
                 if (isMajor) {
                     UILabel *lbl = [[UILabel alloc] initWithFrame:CGRectMake(0, 0, 30, 20)];
-                    int volNum = 100 - (i * 100 / 40);
+                    int volNum = (i * 100 / 40);
                     lbl.text = [NSString stringWithFormat:@"%d", volNum];
                     lbl.textColor = [UIColor whiteColor];
                     lbl.font = [UIFont boldSystemFontOfSize:12];
@@ -170,7 +170,7 @@ static const CGFloat prefs_sensitivity = 1.0;
 - (void)setVolume:(float)volume {
     if (_dockEdge == HKFDockEdgeTop) {
         CGFloat centerOffset = self.bounds.size.width / 2.0;
-        CGFloat tx = centerOffset - ((1.0 - volume) * 600.0);
+        CGFloat tx = centerOffset - (volume * 600.0);
         _rulerView.transform = CGAffineTransformMakeTranslation(tx, 0);
     } else {
         CGFloat angle = (volume - 0.5) * M_PI;
@@ -346,9 +346,11 @@ static const CGFloat prefs_sensitivity = 1.0;
 
     UITapGestureRecognizer *tapGR = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(_handleDoubleTap:)];
     tapGR.numberOfTapsRequired = 2;
+    tapGR.delaysTouchesBegan = NO;
     [_buttonView addGestureRecognizer:tapGR];
 
     UIPanGestureRecognizer *panGR = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(_handleVolumePan:)];
+    panGR.delaysTouchesBegan = NO;
     [_buttonView addGestureRecognizer:panGR];
 
     UILongPressGestureRecognizer *longPressGR = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(_handleLongPressMove:)];
@@ -368,13 +370,13 @@ static const CGFloat prefs_sensitivity = 1.0;
     if (_isIdle) return;
     _isIdle = YES;
     
-    [UIView animateWithDuration:0.4 delay:0 options:UIViewAnimationOptionCurveEaseOut animations:^{
+    [UIView animateWithDuration:0.4 delay:0 options:UIViewAnimationOptionCurveEaseOut | UIViewAnimationOptionAllowUserInteraction animations:^{
         _buttonView.alpha = prefs_idleOpacity;
         CGFloat W = [UIScreen mainScreen].bounds.size.width;
         CGPoint center = self.floatingWindow.center;
         
         if (_currentEdge == HKFDockEdgeTop) {
-            center.y = 50.0;
+            center.y = 16.0;
         } else if (_currentEdge == HKFDockEdgeLeft) {
             center.x = (prefs_buttonSize / 2.0) + 2; 
         } else {
@@ -390,7 +392,7 @@ static const CGFloat prefs_sensitivity = 1.0;
     if (!_isIdle) return;
     _isIdle = NO;
     
-    [UIView animateWithDuration:0.2 animations:^{
+    [UIView animateWithDuration:0.2 delay:0 options:UIViewAnimationOptionAllowUserInteraction animations:^{
         _buttonView.alpha = 1.0;
     }];
 }
@@ -445,7 +447,7 @@ static const CGFloat prefs_sensitivity = 1.0;
         _dialView.alpha = 0.0;
         [self.floatingWindow.rootViewController.view insertSubview:_dialView belowSubview:_buttonView];
         
-        [UIView animateWithDuration:0.3 delay:0 usingSpringWithDamping:0.7 initialSpringVelocity:0 options:UIViewAnimationOptionCurveEaseOut animations:^{
+        [UIView animateWithDuration:0.3 delay:0 usingSpringWithDamping:0.7 initialSpringVelocity:0 options:UIViewAnimationOptionCurveEaseOut | UIViewAnimationOptionAllowUserInteraction animations:^{
             _dialView.transform = CGAffineTransformIdentity;
             _dialView.alpha = 1.0;
             _buttonView.alpha = 0.0;
@@ -465,11 +467,7 @@ static const CGFloat prefs_sensitivity = 1.0;
         CGFloat speedMultiplier = 1.0 + MIN(fabs(vel) / 500.0, 3.0);
         
         float volumeChange;
-        if (_currentEdge == HKFDockEdgeTop) {
-            volumeChange = (delta / 150.0) * prefs_sensitivity * speedMultiplier;
-        } else {
-            volumeChange = (-delta / 150.0) * prefs_sensitivity * speedMultiplier;
-        }
+        volumeChange = (-delta / 150.0) * prefs_sensitivity * speedMultiplier;
         
         _currentVolume += volumeChange;
         _currentVolume = MAX(0.0f, MIN(1.0f, _currentVolume));
@@ -487,7 +485,7 @@ static const CGFloat prefs_sensitivity = 1.0;
         }
     }
     else {
-        [UIView animateWithDuration:0.3 animations:^{
+        [UIView animateWithDuration:0.3 delay:0 options:UIViewAnimationOptionAllowUserInteraction animations:^{
             _dialView.transform = CGAffineTransformMakeScale(0.1, 0.1);
             _dialView.alpha = 0.0;
             _buttonView.alpha = 1.0;
@@ -516,14 +514,14 @@ static const CGFloat prefs_sensitivity = 1.0;
         CGPoint popCenter = self.floatingWindow.center;
         
         if (_currentEdge == HKFDockEdgeTop) {
-            popCenter.y = 50.0;
+            popcenter.y = 16.0;
         } else if (popCenter.x < W / 2.0) {
             popCenter.x = (prefs_buttonSize / 2.0) + 2; 
         } else { 
             popCenter.x = W - (prefs_buttonSize / 2.0) - 2; 
         }
         
-        [UIView animateWithDuration:0.2 animations:^{
+        [UIView animateWithDuration:0.2 delay:0 options:UIViewAnimationOptionAllowUserInteraction animations:^{
             self.floatingWindow.center = popCenter;
             self.floatingWindow.transform = CGAffineTransformMakeScale(1.1, 1.1);
         }];
@@ -546,7 +544,7 @@ static const CGFloat prefs_sensitivity = 1.0;
         }
         
         if (edgePreview != _currentEdge) {
-            [UIView animateWithDuration:0.2 animations:^{
+            [UIView animateWithDuration:0.2 delay:0 options:UIViewAnimationOptionAllowUserInteraction animations:^{
                 [self _updateShapeForEdge:edgePreview];
                 [_lightFeedback impactOccurred];
             }];
@@ -560,7 +558,7 @@ static const CGFloat prefs_sensitivity = 1.0;
         HKFDockEdge finalEdge;
         if (finalCenter.y < H * 0.12) {
             finalEdge = HKFDockEdgeTop;
-            finalCenter.y = 50.0;
+            finalcenter.y = 16.0;
             if (finalCenter.x < 60) finalCenter.x = 60;
             if (finalCenter.x > W - 60) finalCenter.x = W - 60;
         } else {
@@ -579,7 +577,7 @@ static const CGFloat prefs_sensitivity = 1.0;
             if (finalCenter.y > bottomSafeArea) finalCenter.y = bottomSafeArea;
         }
         
-        [UIView animateWithDuration:0.3 delay:0 usingSpringWithDamping:0.8 initialSpringVelocity:0 options:UIViewAnimationOptionCurveEaseOut animations:^{
+        [UIView animateWithDuration:0.3 delay:0 usingSpringWithDamping:0.8 initialSpringVelocity:0 options:UIViewAnimationOptionCurveEaseOut | UIViewAnimationOptionAllowUserInteraction animations:^{
             [self _updateShapeForEdge:finalEdge];
             self.floatingWindow.center = finalCenter;
             self.floatingWindow.transform = CGAffineTransformIdentity;
@@ -597,6 +595,8 @@ static const CGFloat prefs_sensitivity = 1.0;
     });
 }
 %end
+
+
 
 
 
