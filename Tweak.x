@@ -20,29 +20,13 @@
 - (void)saveScreenshot:(BOOL)saveToPhotos;
 @end
 
-// --- Preferences ---
-static BOOL prefs_lockPosition = NO;
-static CGFloat prefs_idleOpacity = 0.3; 
-static CGFloat prefs_idleTimeout = 2.0; 
-static CGFloat prefs_buttonSize = 55.0; 
-static CGFloat prefs_dialSize = 180.0; 
-static CGFloat prefs_sensitivity = 1.0;
-
-static void ReloadPrefs() {
-    CFPreferencesAppSynchronize(CFSTR("com.yourname.hardkeyfix"));
-    id lockPos = (__bridge id)CFPreferencesCopyAppValue(CFSTR("lockPosition"), CFSTR("com.yourname.hardkeyfix"));
-    if (lockPos) prefs_lockPosition = [lockPos boolValue];
-    id opacity = (__bridge id)CFPreferencesCopyAppValue(CFSTR("idleOpacity"), CFSTR("com.yourname.hardkeyfix"));
-    if (opacity) prefs_idleOpacity = [opacity floatValue];
-    id timeout = (__bridge id)CFPreferencesCopyAppValue(CFSTR("idleTimeout"), CFSTR("com.yourname.hardkeyfix"));
-    if (timeout) prefs_idleTimeout = [timeout floatValue];
-    id btnSize = (__bridge id)CFPreferencesCopyAppValue(CFSTR("buttonSize"), CFSTR("com.yourname.hardkeyfix"));
-    if (btnSize) prefs_buttonSize = [btnSize floatValue];
-    id dSize = (__bridge id)CFPreferencesCopyAppValue(CFSTR("dialSize"), CFSTR("com.yourname.hardkeyfix"));
-    if (dSize) prefs_dialSize = [dSize floatValue];
-    id sens = (__bridge id)CFPreferencesCopyAppValue(CFSTR("sensitivity"), CFSTR("com.yourname.hardkeyfix"));
-    if (sens) prefs_sensitivity = [sens floatValue];
-}
+// --- Hardcoded Preferences ---
+static const BOOL prefs_lockPosition = NO;
+static const CGFloat prefs_idleOpacity = 0.3; 
+static const CGFloat prefs_idleTimeout = 0.5; // Đã đổi thành 0.5s theo yêu cầu
+static const CGFloat prefs_buttonSize = 55.0; 
+static const CGFloat prefs_dialSize = 180.0; 
+static const CGFloat prefs_sensitivity = 1.0;
 
 // --- Dial View ---
 @interface HKFDialView : UIView
@@ -69,7 +53,7 @@ static void ReloadPrefs() {
         blurView.clipsToBounds = YES;
         [_wheelView addSubview:blurView];
         
-        // 40 steps from -M_PI/2 to M_PI/2 (180 degrees)
+        // 40 steps from +M_PI/2 to -M_PI/2 (180 degrees)
         for (int i = 0; i <= 40; i++) {
             UIView *wrapper = [[UIView alloc] initWithFrame:self.bounds];
             UIView *tick = [[UIView alloc] init];
@@ -89,15 +73,15 @@ static void ReloadPrefs() {
             tick.layer.cornerRadius = 1.0;
             [wrapper addSubview:tick];
             
-            // Góc vẽ: 100% (-90 độ ở trên) đến 0% (+90 độ ở dưới)
-            CGFloat tickAngle = (-M_PI / 2.0) + (i / 40.0) * M_PI;
+            // i=0 -> 100%, i=40 -> 0%
+            // 100% vẽ ở +90 độ (dưới cùng). 0% vẽ ở -90 độ (trên cùng)
+            CGFloat tickAngle = (M_PI / 2.0) - (i / 40.0) * M_PI;
             wrapper.transform = CGAffineTransformMakeRotation(tickAngle);
             [_wheelView addSubview:wrapper];
             
             // Vẽ số
             if (isMajor) {
                 UILabel *lbl = [[UILabel alloc] initWithFrame:CGRectMake(0, 0, 30, 20)];
-                // i=0 -> 100, i=10 -> 75, i=20 -> 50...
                 int volNum = 100 - (i * 100 / 40);
                 lbl.text = [NSString stringWithFormat:@"%d", volNum];
                 lbl.textColor = [UIColor whiteColor];
@@ -105,12 +89,12 @@ static void ReloadPrefs() {
                 lbl.textAlignment = NSTextAlignmentCenter;
                 
                 if (isLeft) {
-                    lbl.center = CGPointMake(frame.size.width - 32, frame.size.height / 2.0);
+                    lbl.center = CGPointMake(frame.size.width - 34, frame.size.height / 2.0);
                 } else {
-                    lbl.center = CGPointMake(32, frame.size.height / 2.0);
+                    lbl.center = CGPointMake(34, frame.size.height / 2.0);
                 }
                 [wrapper addSubview:lbl];
-                lbl.transform = CGAffineTransformMakeRotation(-tickAngle); // Giữ số luôn thẳng đứng
+                lbl.transform = CGAffineTransformMakeRotation(-tickAngle); // Giữ số luôn thẳng đứng so với tâm
             }
         }
         
@@ -120,8 +104,9 @@ static void ReloadPrefs() {
 }
 
 - (void)setVolume:(float)volume {
-    // volume 0.0 -> quay -90 độ. volume 1.0 -> quay +90 độ.
-    CGFloat angle = (volume - 0.5) * M_PI;
+    // volume 0.0 -> quay +90 độ. volume 1.0 -> quay -90 độ.
+    // Xoay ngược chiều kim đồng hồ khi tăng âm lượng (Vuốt lên -> Bánh xe xoay lên)
+    CGFloat angle = -(volume - 0.5) * M_PI;
     _wheelView.transform = CGAffineTransformMakeRotation(angle);
 }
 @end
@@ -179,10 +164,10 @@ static void ReloadPrefs() {
     rootVC.view.backgroundColor = [UIColor clearColor];
     self.rootViewController = rootVC;
 
-    // --- Volume Controller (Chặn HUD gốc) ---
-    // Đưa ra ngoài màn hình (-1000) và để alpha=1.0 để ép iOS ẩn HUD gốc
-    _hiddenVolumeView = [[MPVolumeView alloc] initWithFrame:CGRectMake(-1000, -1000, 100, 100)];
-    _hiddenVolumeView.alpha = 1.0; 
+    // --- Volume Controller ---
+    // Đã hủy chức năng ẩn Volume HUD, trả lại trạng thái gốc của máy
+    _hiddenVolumeView = [[MPVolumeView alloc] initWithFrame:CGRectMake(0, 0, 1, 1)];
+    _hiddenVolumeView.alpha = 0.0; // Chỉ ẩn thanh UI ảo này, không ẩn HUD hệ thống
     _hiddenVolumeView.hidden = NO;
     _hiddenVolumeView.userInteractionEnabled = NO;
     [rootVC.view addSubview:_hiddenVolumeView];
@@ -228,15 +213,6 @@ static void ReloadPrefs() {
     longPressGR.minimumPressDuration = 0.5;
     [_buttonView addGestureRecognizer:longPressGR];
 
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_prefsChanged) name:@"com.yourname.hardkeyfix/ReloadPrefs" object:nil];
-}
-
-- (void)_prefsChanged {
-    ReloadPrefs();
-    CGPoint currentCenter = _buttonView.center;
-    _buttonView.bounds = CGRectMake(0, 0, prefs_buttonSize, prefs_buttonSize);
-    _buttonView.layer.cornerRadius = prefs_buttonSize / 2.0;
-    _buttonView.center = currentCenter;
     [self _resetIdleTimer];
 }
 
@@ -331,24 +307,25 @@ static void ReloadPrefs() {
         CGFloat velY = [gr velocityInView:self].y;
         
         // Tốc độ vuốt càng nhanh, hệ số nhân càng lớn (Max x3)
-        CGFloat speedMultiplier = 1.0 + MIN(fabs(velY) / 1000.0, 2.0);
+        CGFloat speedMultiplier = 1.0 + MIN(fabs(velY) / 500.0, 3.0);
         
-        // Cần vuốt tổng cộng 200 pixel để thay đổi 100% âm lượng (chưa tính hệ số)
-        float volumeChange = (-deltaY / 200.0) * prefs_sensitivity * speedMultiplier;
+        // 150 pixel vuốt chậm = 100% âm lượng (180 độ bánh xe)
+        float volumeChange = (-deltaY / 150.0) * prefs_sensitivity * speedMultiplier;
         
         _currentVolume += volumeChange;
         _currentVolume = MAX(0.0f, MIN(1.0f, _currentVolume));
         
         [_dialView setVolume:_currentVolume];
         
+        // Cập nhật âm lượng liên tục để không bị kẹt khi vuốt chậm
+        [_volumeSlider setValue:_currentVolume animated:NO];
+        [_volumeSlider sendActionsForControlEvents:UIControlEventTouchUpInside];
+        
         int currentStep = (int)(_currentVolume * 16.0);
         if (currentStep != _lastHapticStep) {
             _lastHapticStep = currentStep;
             UIImpactFeedbackGenerator *feedback = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
             [feedback impactOccurred];
-            
-            [_volumeSlider setValue:_currentVolume animated:NO];
-            [_volumeSlider sendActionsForControlEvents:UIControlEventTouchUpInside];
         }
     }
     else {
@@ -421,9 +398,6 @@ static void ReloadPrefs() {
 %hook SpringBoard
 - (void)applicationDidFinishLaunching:(id)application {
     %orig;
-    ReloadPrefs();
-    CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, (CFNotificationCallback)ReloadPrefs, CFSTR("com.yourname.hardkeyfix/ReloadPrefs"), NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
-    
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         HKFFloatingWindow *win = [[HKFFloatingWindow alloc] init];
         objc_setAssociatedObject([UIApplication sharedApplication], "HKFFloatingWindowKey", win, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
