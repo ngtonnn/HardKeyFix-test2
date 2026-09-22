@@ -154,6 +154,11 @@ static const CGFloat prefs_sensitivity = 1.0;
     UISlider *_volumeSlider;
     HKFDialView *_dialView;
     
+    // Haptics
+    UIImpactFeedbackGenerator *_lightFeedback;
+    UIImpactFeedbackGenerator *_heavyFeedback;
+    UIImpactFeedbackGenerator *_mediumFeedback;
+    
     // Dragging
     CGPoint _dragStartCenter;
     CGPoint _dragStartTouch;
@@ -188,6 +193,11 @@ static const CGFloat prefs_sensitivity = 1.0;
     UIViewController *rootVC = [UIViewController new];
     rootVC.view.backgroundColor = [UIColor clearColor];
     self.rootViewController = rootVC;
+    
+    // Khởi tạo trước hệ thống Rung Haptic để không bị giật lag khi lướt
+    _lightFeedback = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
+    _heavyFeedback = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleHeavy];
+    _mediumFeedback = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleMedium];
 
     // --- Volume Controller ---
     // Đã hủy chức năng ẩn Volume HUD, trả lại trạng thái gốc của máy
@@ -321,8 +331,9 @@ static const CGFloat prefs_sensitivity = 1.0;
             _buttonView.alpha = 0.0;
         } completion:nil];
         
-        UIImpactFeedbackGenerator *feedback = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleHeavy];
-        [feedback impactOccurred];
+        [_heavyFeedback prepare];
+        [_lightFeedback prepare];
+        [_heavyFeedback impactOccurred];
         
     } 
     else if (gr.state == UIGestureRecognizerStateChanged) {
@@ -349,8 +360,8 @@ static const CGFloat prefs_sensitivity = 1.0;
         int currentStep = (int)(_currentVolume * 16.0);
         if (currentStep != _lastHapticStep) {
             _lastHapticStep = currentStep;
-            UIImpactFeedbackGenerator *feedback = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
-            [feedback impactOccurred];
+            [_lightFeedback impactOccurred];
+            [_lightFeedback prepare];
         }
     }
     else {
@@ -391,8 +402,8 @@ static const CGFloat prefs_sensitivity = 1.0;
         }];
         _dragStartCenter = popCenter;
         
-        UIImpactFeedbackGenerator *feedback = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleMedium];
-        [feedback impactOccurred];
+        [_mediumFeedback prepare];
+        [_mediumFeedback impactOccurred];
     }
     else if (gr.state == UIGestureRecognizerStateChanged) {
         CGFloat dx = location.x - _dragStartTouch.x;
