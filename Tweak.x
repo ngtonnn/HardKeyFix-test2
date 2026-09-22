@@ -144,18 +144,11 @@ static const CGFloat prefs_sensitivity = 1.0;
 // --- Floating Widget Controller ---
 
 @interface HKFWindow : UIWindow
-@property (nonatomic, weak) UIView *buttonView;
-@property (nonatomic, weak) UIView *dialView;
 @end
 
 @implementation HKFWindow
 - (BOOL)_canShowWhileLocked {
     return YES;
-}
-- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent *)event {
-    if (self.buttonView && CGRectContainsPoint(self.buttonView.frame, point)) return YES;
-    if (self.dialView && CGRectContainsPoint(self.dialView.frame, point)) return YES;
-    return NO; // Xuyên thấu cảm ứng xuống dưới
 }
 @end
 
@@ -213,26 +206,36 @@ static const CGFloat prefs_sensitivity = 1.0;
         }
     }
     
+    CGFloat btnSize = prefs_buttonSize;
+    CGFloat W = [UIScreen mainScreen].bounds.size.width;
+    CGFloat H = [UIScreen mainScreen].bounds.size.height;
+    
+    // Khởi tạo window CHỈ BẰNG ĐÚNG KÍCH THƯỚC NÚT (55x55). 
+    // Cơ chế an toàn 100%: Dù có lỗi thì nó cũng KHÔNG THỂ che khuất hay làm liệt cảm ứng của màn hình.
+    CGRect windowFrame = CGRectMake(W - btnSize - 2, H / 2.0 - btnSize / 2.0, btnSize, btnSize);
+    
     if (targetScene) {
         self.floatingWindow = [[HKFWindow alloc] initWithWindowScene:targetScene];
+        self.floatingWindow.frame = windowFrame;
     } else {
-        self.floatingWindow = [[HKFWindow alloc] initWithFrame:[UIScreen mainScreen].bounds];
+        self.floatingWindow = [[HKFWindow alloc] initWithFrame:windowFrame];
     }
     
     self.floatingWindow.backgroundColor = [UIColor clearColor];
     self.floatingWindow.windowLevel = 9999999.0;
     self.floatingWindow.userInteractionEnabled = YES;
+    self.floatingWindow.clipsToBounds = NO; // Cho phép vẽ Bánh xe to (180x180) tràn ra khỏi ranh giới Window
     
     HKFRootViewController *rootVC = [HKFRootViewController new];
     rootVC.view.backgroundColor = [UIColor clearColor];
+    rootVC.view.clipsToBounds = NO;
     self.floatingWindow.rootViewController = rootVC;
     
     _lightFeedback = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
     _heavyFeedback = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleHeavy];
     _mediumFeedback = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleMedium];
 
-    // MPVolumeView để lấy slider chỉnh âm lượng ngầm
-    _hiddenVolumeView = [[MPVolumeView alloc] initWithFrame:CGRectMake(50, 50, 10, 10)];
+    _hiddenVolumeView = [[MPVolumeView alloc] initWithFrame:CGRectMake(0, 0, 10, 10)];
     _hiddenVolumeView.alpha = 0.01;
     _hiddenVolumeView.hidden = NO;
     _hiddenVolumeView.userInteractionEnabled = NO;
@@ -245,8 +248,7 @@ static const CGFloat prefs_sensitivity = 1.0;
         }
     }
 
-    CGFloat btnSize = prefs_buttonSize;
-    _buttonView = [[UIView alloc] initWithFrame:CGRectMake(self.floatingWindow.bounds.size.width - btnSize - 2, self.floatingWindow.bounds.size.height / 2, btnSize, btnSize)];
+    _buttonView = [[UIView alloc] initWithFrame:rootVC.view.bounds];
     _buttonView.backgroundColor = [UIColor colorWithWhite:0.2 alpha:0.8];
     _buttonView.layer.cornerRadius = btnSize / 2.0;
     _buttonView.layer.masksToBounds = NO;
@@ -282,8 +284,6 @@ static const CGFloat prefs_sensitivity = 1.0;
     centerDot.userInteractionEnabled = NO;
     [_buttonView addSubview:centerDot];
     
-    HKFWindow *passWin = (HKFWindow *)self.floatingWindow;
-    passWin.buttonView = _buttonView; 
     [rootVC.view addSubview:_buttonView];
     
     _buttonView.alpha = prefs_idleOpacity;
@@ -315,9 +315,9 @@ static const CGFloat prefs_sensitivity = 1.0;
     
     [UIView animateWithDuration:0.4 delay:0 options:UIViewAnimationOptionCurveEaseOut animations:^{
         _buttonView.alpha = prefs_idleOpacity;
-        CGFloat W = self.floatingWindow.bounds.size.width;
-        CGFloat radius = _buttonView.bounds.size.width / 2.0;
-        CGPoint center = _buttonView.center;
+        CGFloat W = [UIScreen mainScreen].bounds.size.width;
+        CGFloat radius = prefs_buttonSize / 2.0;
+        CGPoint center = self.floatingWindow.center;
         
         if (center.x < W / 2.0) {
             center.x = radius + 2; 
@@ -325,7 +325,7 @@ static const CGFloat prefs_sensitivity = 1.0;
             center.x = W - radius - 2;
         }
         
-        _buttonView.center = center;
+        self.floatingWindow.center = center;
     } completion:nil];
 }
 
@@ -342,7 +342,8 @@ static const CGFloat prefs_sensitivity = 1.0;
 - (void)_handleDoubleTap:(UITapGestureRecognizer *)gr {
     [self _resetIdleTimer];
     
-    self.floatingWindow.hidden = YES; // Tạm ẩn cả Window
+    self.floatingWindow.hidden = UIWindow.isAccessibilityCategory; // or just hidden = YES
+    self.floatingWindow.hidden = YES;
     
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         SpringBoard *sb = (SpringBoard *)[UIApplication sharedApplication];
@@ -366,7 +367,7 @@ static const CGFloat prefs_sensitivity = 1.0;
 
 - (void)_handleVolumePan:(UIPanGestureRecognizer *)gr {
     [self _wakeUp];
-    CGPoint location = [gr locationInView:self.floatingWindow.rootViewController.view];
+    CGPoint location = [gr locationInView:nil]; // Lấy toạ độ toàn cầu
     
     if (!_volumeSlider) return;
 
@@ -375,19 +376,16 @@ static const CGFloat prefs_sensitivity = 1.0;
         _currentVolume = _volumeSlider.value;
         _lastHapticStep = (int)(_currentVolume * 16.0);
         
-        CGFloat W = self.floatingWindow.bounds.size.width;
-        BOOL isLeft = (_buttonView.center.x < W / 2.0);
+        CGFloat W = [UIScreen mainScreen].bounds.size.width;
+        BOOL isLeft = (self.floatingWindow.center.x < W / 2.0);
         
         _dialView = [[HKFDialView alloc] initWithFrame:CGRectMake(0, 0, prefs_dialSize, prefs_dialSize) isLeft:isLeft];
-        _dialView.center = _buttonView.center;
+        _dialView.center = CGPointMake(prefs_buttonSize / 2.0, prefs_buttonSize / 2.0); // Căn giữa nút
         [_dialView setVolume:_currentVolume];
         
         _dialView.transform = CGAffineTransformMakeScale(0.1, 0.1);
         _dialView.alpha = 0.0;
         [self.floatingWindow.rootViewController.view insertSubview:_dialView belowSubview:_buttonView];
-        
-        HKFWindow *passWin = (HKFWindow *)self.floatingWindow;
-        passWin.dialView = _dialView; // Gắn reference
         
         [UIView animateWithDuration:0.3 delay:0 usingSpringWithDamping:0.7 initialSpringVelocity:0 options:UIViewAnimationOptionCurveEaseOut animations:^{
             _dialView.transform = CGAffineTransformIdentity;
@@ -404,7 +402,7 @@ static const CGFloat prefs_sensitivity = 1.0;
         CGFloat deltaY = location.y - _lastPanY; 
         _lastPanY = location.y;
         
-        CGFloat velY = [gr velocityInView:self.floatingWindow.rootViewController.view].y;
+        CGFloat velY = [gr velocityInView:nil].y;
         CGFloat speedMultiplier = 1.0 + MIN(fabs(velY) / 500.0, 3.0);
         
         float volumeChange = (-deltaY / 150.0) * prefs_sensitivity * speedMultiplier;
@@ -432,8 +430,6 @@ static const CGFloat prefs_sensitivity = 1.0;
         } completion:^(BOOL finished) {
             [_dialView removeFromSuperview];
             _dialView = nil;
-            HKFWindow *passWin = (HKFWindow *)self.floatingWindow;
-            passWin.dialView = nil;
         }];
         [self _resetIdleTimer];
     }
@@ -446,21 +442,21 @@ static const CGFloat prefs_sensitivity = 1.0;
         return;
     }
     
-    CGPoint location = [gr locationInView:self.floatingWindow.rootViewController.view];
+    CGPoint location = [gr locationInView:nil];
     
     if (gr.state == UIGestureRecognizerStateBegan) {
-        _dragStartCenter = _buttonView.center;
+        _dragStartCenter = self.floatingWindow.center;
         _dragStartTouch = location;
         
-        CGFloat W = self.floatingWindow.bounds.size.width;
-        CGFloat radius = _buttonView.bounds.size.width / 2.0;
-        CGPoint popCenter = _buttonView.center;
+        CGFloat W = [UIScreen mainScreen].bounds.size.width;
+        CGFloat radius = prefs_buttonSize / 2.0;
+        CGPoint popCenter = self.floatingWindow.center;
         if (popCenter.x < W / 2.0) { popCenter.x = radius + 2; } 
         else { popCenter.x = W - radius - 2; }
         
         [UIView animateWithDuration:0.2 animations:^{
-            _buttonView.center = popCenter;
-            _buttonView.transform = CGAffineTransformMakeScale(1.2, 1.2);
+            self.floatingWindow.center = popCenter;
+            self.floatingWindow.transform = CGAffineTransformMakeScale(1.2, 1.2);
         }];
         _dragStartCenter = popCenter;
         
@@ -470,13 +466,13 @@ static const CGFloat prefs_sensitivity = 1.0;
     else if (gr.state == UIGestureRecognizerStateChanged) {
         CGFloat dx = location.x - _dragStartTouch.x;
         CGFloat dy = location.y - _dragStartTouch.y;
-        _buttonView.center = CGPointMake(_dragStartCenter.x + dx, _dragStartCenter.y + dy);
+        self.floatingWindow.center = CGPointMake(_dragStartCenter.x + dx, _dragStartCenter.y + dy);
     }
     else {
-        CGFloat W = self.floatingWindow.bounds.size.width;
-        CGFloat H = self.floatingWindow.bounds.size.height;
-        CGFloat radius = _buttonView.bounds.size.width / 2.0;
-        CGPoint finalCenter = _buttonView.center;
+        CGFloat W = [UIScreen mainScreen].bounds.size.width;
+        CGFloat H = [UIScreen mainScreen].bounds.size.height;
+        CGFloat radius = prefs_buttonSize / 2.0;
+        CGPoint finalCenter = self.floatingWindow.center;
         
         if (finalCenter.x < W / 2.0) {
             finalCenter.x = radius + 2; 
@@ -484,14 +480,14 @@ static const CGFloat prefs_sensitivity = 1.0;
             finalCenter.x = W - radius - 2;
         }
         
-        CGFloat topSafeArea = 50.0;
-        CGFloat bottomSafeArea = H - 50.0;
+        CGFloat topSafeArea = 50.0 + radius;
+        CGFloat bottomSafeArea = H - 50.0 - radius;
         if (finalCenter.y < topSafeArea) finalCenter.y = topSafeArea;
         if (finalCenter.y > bottomSafeArea) finalCenter.y = bottomSafeArea;
         
         [UIView animateWithDuration:0.3 delay:0 usingSpringWithDamping:0.8 initialSpringVelocity:0 options:UIViewAnimationOptionCurveEaseOut animations:^{
-            _buttonView.center = finalCenter;
-            _buttonView.transform = CGAffineTransformIdentity;
+            self.floatingWindow.center = finalCenter;
+            self.floatingWindow.transform = CGAffineTransformIdentity;
         } completion:nil];
         [self _resetIdleTimer];
     }
