@@ -89,9 +89,9 @@ static const CGFloat prefs_sensitivity = 1.0;
                 lbl.textAlignment = NSTextAlignmentCenter;
                 
                 if (isLeft) {
-                    lbl.center = CGPointMake(frame.size.width - 34, frame.size.height / 2.0);
+                    lbl.center = CGPointMake(frame.size.width - 36, frame.size.height / 2.0);
                 } else {
-                    lbl.center = CGPointMake(34, frame.size.height / 2.0);
+                    lbl.center = CGPointMake(36, frame.size.height / 2.0);
                 }
                 [wrapper addSubview:lbl];
                 lbl.transform = CGAffineTransformMakeRotation(-tickAngle); // Giữ số luôn thẳng đứng so với tâm
@@ -99,6 +99,28 @@ static const CGFloat prefs_sensitivity = 1.0;
         }
         
         [self addSubview:_wheelView];
+        
+        // --- Marker (Vạch chỉ báo màu vàng cố định) ---
+        UIView *marker = [[UIView alloc] init];
+        marker.backgroundColor = [UIColor systemYellowColor];
+        marker.layer.cornerRadius = 1.5;
+        
+        // Đổ bóng nhẹ để vạch nổi bật lên trên bánh xe
+        marker.layer.shadowColor = [UIColor blackColor].CGColor;
+        marker.layer.shadowOffset = CGSizeMake(0, 1);
+        marker.layer.shadowOpacity = 0.8;
+        marker.layer.shadowRadius = 1.5;
+        
+        CGFloat markerW = 18.0;
+        CGFloat markerH = 3.0;
+        
+        if (isLeft) {
+            marker.frame = CGRectMake(frame.size.width - markerW - 2, (frame.size.height - markerH) / 2.0, markerW, markerH);
+        } else {
+            marker.frame = CGRectMake(2, (frame.size.height - markerH) / 2.0, markerW, markerH);
+        }
+        
+        [self addSubview:marker];
     }
     return self;
 }
