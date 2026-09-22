@@ -7,8 +7,8 @@ BUNDLE_NAME = HardKeyFixPrefs
 
 HardKeyFixPrefs_FILES = HKFPRootListController.m
 HardKeyFixPrefs_FRAMEWORKS = UIKit
-HardKeyFixPrefs_PRIVATE_FRAMEWORKS = Preferences
 HardKeyFixPrefs_INSTALL_PATH = /Library/PreferenceBundles
 HardKeyFixPrefs_CFLAGS = -fobjc-arc
+HardKeyFixPrefs_LDFLAGS = -undefined dynamic_lookup
 
 include $(THEOS_MAKE_PATH)/bundle.mk
