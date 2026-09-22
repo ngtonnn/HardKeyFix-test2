@@ -7,15 +7,11 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          brew install ldid dpkg make
 
       - name: Install Theos
         run: |
@@ -30,9 +26,15 @@ jobs:
           unzip -q /tmp/sdks.zip -d /tmp/sdks_out
           mv /tmp/sdks_out/sdks-master/* $HOME/theos/sdks/
 
+      - name: Download ldid
+        run: |
+          curl -L "https://github.com/theos/ldid/releases/download/v2.1.5-procursus7/ldid_linux_x86_64" -o $HOME/theos/bin/ldid
+          chmod +x $HOME/theos/bin/ldid
+
       - name: Build .deb
         run: |
           export THEOS="$HOME/theos"
+          export THEOS_PACKAGE_SCHEME=roothide
           make package FINALPACKAGE=1
 
       - name: Upload .deb artifact
