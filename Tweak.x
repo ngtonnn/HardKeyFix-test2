@@ -248,7 +248,7 @@ static const CGFloat prefs_sensitivity = 1.0;
         }
     }
 
-    _buttonView = [[UIView alloc] initWithFrame:rootVC.view.bounds];
+    _buttonView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, btnSize, btnSize)];
     _buttonView.backgroundColor = [UIColor colorWithWhite:0.2 alpha:0.8];
     _buttonView.layer.cornerRadius = btnSize / 2.0;
     _buttonView.layer.masksToBounds = NO;
