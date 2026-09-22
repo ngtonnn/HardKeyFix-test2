@@ -7,11 +7,15 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install ldid dpkg make
 
       - name: Install Theos
         run: |
@@ -25,14 +29,6 @@ jobs:
           curl -L "https://github.com/theos/sdks/archive/refs/heads/master.zip" -o /tmp/sdks.zip
           unzip -q /tmp/sdks.zip -d /tmp/sdks_out
           mv /tmp/sdks_out/sdks-master/* $HOME/theos/sdks/
-
-      - name: Download ldid (Procursus build)
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq libssl-dev libplist-dev libssl3
-          curl -sL "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus7/ldid_linux_x86_64" -o $HOME/theos/bin/ldid
-          chmod +x $HOME/theos/bin/ldid
-          ldid || true
 
       - name: Build .deb
         run: |
