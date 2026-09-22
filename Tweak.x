@@ -143,23 +143,7 @@ static const CGFloat prefs_sensitivity = 1.0;
 
 // --- Floating Widget Controller ---
 
-@interface HKFWindow : UIWindow
-@end
-
-@implementation HKFWindow
-- (BOOL)_canShowWhileLocked {
-    return YES;
-}
-@end
-
-// Root Controller vượt màn hình khóa
-@interface HKFRootViewController : UIViewController
-@end
-@implementation HKFRootViewController
-- (BOOL)_canShowWhileLocked {
-    return YES;
-}
-@end
+// Removed HKFWindow and HKFRootViewController to simplify the tweak
 
 
 @interface HKFFloatingManager : NSObject
@@ -215,10 +199,10 @@ static const CGFloat prefs_sensitivity = 1.0;
     CGRect windowFrame = CGRectMake(W - btnSize - 2, H / 2.0 - btnSize / 2.0, btnSize, btnSize);
     
     if (targetScene) {
-        self.floatingWindow = [[HKFWindow alloc] initWithWindowScene:targetScene];
+        self.floatingWindow = [[UIWindow alloc] initWithWindowScene:targetScene];
         self.floatingWindow.frame = windowFrame;
     } else {
-        self.floatingWindow = [[HKFWindow alloc] initWithFrame:windowFrame];
+        self.floatingWindow = [[UIWindow alloc] initWithFrame:windowFrame];
     }
     
     self.floatingWindow.backgroundColor = [UIColor clearColor];
@@ -226,7 +210,7 @@ static const CGFloat prefs_sensitivity = 1.0;
     self.floatingWindow.userInteractionEnabled = YES;
     self.floatingWindow.clipsToBounds = NO; // Cho phép vẽ Bánh xe to (180x180) tràn ra khỏi ranh giới Window
     
-    HKFRootViewController *rootVC = [HKFRootViewController new];
+    UIViewController *rootVC = [UIViewController new];
     rootVC.view.backgroundColor = [UIColor clearColor];
     rootVC.view.clipsToBounds = NO;
     self.floatingWindow.rootViewController = rootVC;
