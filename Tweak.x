@@ -177,7 +177,7 @@ static const CGFloat prefs_sensitivity = 1.0;
 - (instancetype)init {
     UIWindowScene *scene = nil;
     for (UIWindowScene *s in [UIApplication sharedApplication].connectedScenes) {
-        if ([s isKindOfClass:[UIWindowScene class]]) {
+        if ([s isKindOfClass:[UIWindowScene class]] && s.screen == [UIScreen mainScreen]) {
             scene = s;
             break;
         }
@@ -202,7 +202,7 @@ static const CGFloat prefs_sensitivity = 1.0;
     self.backgroundColor = [UIColor clearColor];
     
     // Window level rất cao để nổi lên trên mọi thứ (kể cả Lock Screen)
-    self.windowLevel = UIWindowLevelStatusBar + 1000;
+    self.windowLevel = 9999999.0;
     self.userInteractionEnabled = YES;
     self.hidden = NO;
 
@@ -216,9 +216,8 @@ static const CGFloat prefs_sensitivity = 1.0;
     _mediumFeedback = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleMedium];
 
     // --- Volume Controller ---
-    // Đã hủy chức năng ẩn Volume HUD, trả lại trạng thái gốc của máy
     _hiddenVolumeView = [[MPVolumeView alloc] initWithFrame:CGRectMake(0, 0, 1, 1)];
-    _hiddenVolumeView.alpha = 0.0; // Chỉ ẩn thanh UI ảo này, không ẩn HUD hệ thống
+    _hiddenVolumeView.alpha = 0.0;
     _hiddenVolumeView.hidden = NO;
     _hiddenVolumeView.userInteractionEnabled = NO;
     [rootVC.view addSubview:_hiddenVolumeView];
@@ -230,25 +229,50 @@ static const CGFloat prefs_sensitivity = 1.0;
         }
     }
 
-    // --- Floating Button ---
+    // --- Floating Button (Thiết kế giống AssistiveTouch) ---
     CGFloat btnSize = prefs_buttonSize;
-    _buttonView = [[UIView alloc] initWithFrame:CGRectMake(self.bounds.size.width, self.bounds.size.height / 2, btnSize, btnSize)];
-    _buttonView.backgroundColor = [UIColor colorWithWhite:0.2 alpha:0.9];
+    _buttonView = [[UIView alloc] initWithFrame:CGRectMake(self.bounds.size.width - btnSize - 2, self.bounds.size.height / 2, btnSize, btnSize)];
+    _buttonView.backgroundColor = [UIColor colorWithWhite:0.2 alpha:0.8];
     _buttonView.layer.cornerRadius = btnSize / 2.0;
-    _buttonView.layer.masksToBounds = YES;
-    _buttonView.layer.borderWidth = 1.5;
-    _buttonView.layer.borderColor = [UIColor colorWithWhite:1.0 alpha:0.3].CGColor;
+    _buttonView.layer.masksToBounds = NO;
+    _buttonView.layer.borderWidth = 1.0;
+    _buttonView.layer.borderColor = [UIColor colorWithWhite:1.0 alpha:0.1].CGColor;
     
+    // Vòng sáng tỏa ra ngoài (Outer Glow)
+    _buttonView.layer.shadowColor = [UIColor whiteColor].CGColor;
+    _buttonView.layer.shadowOffset = CGSizeZero;
+    _buttonView.layer.shadowOpacity = 0.5;
+    _buttonView.layer.shadowRadius = 8.0;
+    
+    // Nền mờ Blur
     UIBlurEffect *blur = [UIBlurEffect effectWithStyle:UIBlurEffectStyleDark];
     UIVisualEffectView *blurView = [[UIVisualEffectView alloc] initWithEffect:blur];
     blurView.frame = _buttonView.bounds;
+    blurView.layer.cornerRadius = btnSize / 2.0;
+    blurView.clipsToBounds = YES;
     blurView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     blurView.userInteractionEnabled = NO;
     [_buttonView addSubview:blurView];
     
+    // Vòng trong AssistiveTouch (Inner Ring)
+    UIView *innerRing = [[UIView alloc] initWithFrame:CGRectInset(_buttonView.bounds, 6, 6)];
+    innerRing.layer.cornerRadius = innerRing.bounds.size.width / 2.0;
+    innerRing.layer.borderWidth = 1.5;
+    innerRing.layer.borderColor = [UIColor colorWithWhite:1.0 alpha:0.4].CGColor;
+    innerRing.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    innerRing.userInteractionEnabled = NO;
+    [_buttonView addSubview:innerRing];
+    
+    // Tâm chấm AssistiveTouch (Center Dot)
+    UIView *centerDot = [[UIView alloc] initWithFrame:CGRectInset(_buttonView.bounds, 16, 16)];
+    centerDot.layer.cornerRadius = centerDot.bounds.size.width / 2.0;
+    centerDot.backgroundColor = [UIColor colorWithWhite:1.0 alpha:0.7];
+    centerDot.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    centerDot.userInteractionEnabled = NO;
+    [_buttonView addSubview:centerDot];
+    
     [rootVC.view addSubview:_buttonView];
     
-    _buttonView.center = CGPointMake(self.bounds.size.width, self.bounds.size.height / 2.0);
     _buttonView.alpha = prefs_idleOpacity;
     _isIdle = YES;
 
@@ -284,8 +308,16 @@ static const CGFloat prefs_sensitivity = 1.0;
     [UIView animateWithDuration:0.4 delay:0 options:UIViewAnimationOptionCurveEaseOut animations:^{
         _buttonView.alpha = prefs_idleOpacity;
         CGFloat W = self.bounds.size.width;
+        CGFloat radius = _buttonView.bounds.size.width / 2.0;
         CGPoint center = _buttonView.center;
-        center.x = (center.x < W / 2.0) ? 0 : W;
+        
+        // Luôn hiển thị nguyên vẹn 1 vòng tròn, chỉ nép sát mép
+        if (center.x < W / 2.0) {
+            center.x = radius + 2; 
+        } else {
+            center.x = W - radius - 2;
+        }
+        
         _buttonView.center = center;
     } completion:nil];
 }
@@ -439,9 +471,15 @@ static const CGFloat prefs_sensitivity = 1.0;
     else {
         CGFloat W = self.bounds.size.width;
         CGFloat H = self.bounds.size.height;
+        CGFloat radius = _buttonView.bounds.size.width / 2.0;
         CGPoint finalCenter = _buttonView.center;
         
-        finalCenter.x = (finalCenter.x < W / 2.0) ? 0 : W;
+        // Luôn hiển thị nguyên vẹn 1 vòng tròn
+        if (finalCenter.x < W / 2.0) {
+            finalCenter.x = radius + 2; 
+        } else {
+            finalCenter.x = W - radius - 2;
+        }
         
         CGFloat topSafeArea = 50.0;
         CGFloat bottomSafeArea = H - 50.0;
