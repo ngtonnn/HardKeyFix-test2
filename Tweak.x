@@ -44,6 +44,9 @@ static const CGFloat prefs_sensitivity = 1.0;
 @end
 
 @implementation HKFDialView
+@synthesize wheelView = _wheelView;
+@synthesize rulerView = _rulerView;
+@synthesize dockEdge = _dockEdge;
 - (instancetype)initWithFrame:(CGRect)frame edge:(HKFDockEdge)edge {
     self = [super initWithFrame:frame];
     if (self) {
@@ -193,6 +196,15 @@ static const CGFloat prefs_sensitivity = 1.0;
 - (void)setup;
 @end
 
+@interface HKFFloatingManager ()
+- (void)_updateShapeForEdge:(HKFDockEdge)edge;
+- (void)_resetIdleTimer;
+- (void)_idleTimerFired;
+- (void)_wakeUp;
+- (void)_handleDoubleTap:(UITapGestureRecognizer *)gr;
+- (void)_handleVolumePan:(UIPanGestureRecognizer *)gr;
+- (void)_handleLongPressMove:(UILongPressGestureRecognizer *)gr;
+@end
 @implementation HKFFloatingManager {
     UIView *_buttonView;
     UIVisualEffectView *_blurView;
@@ -588,3 +600,5 @@ static const CGFloat prefs_sensitivity = 1.0;
     });
 }
 %end
+
+
