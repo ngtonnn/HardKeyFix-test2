@@ -514,7 +514,7 @@ static const CGFloat prefs_sensitivity = 1.0;
         CGPoint popCenter = self.floatingWindow.center;
         
         if (_currentEdge == HKFDockEdgeTop) {
-            popcenter.y = 16.0;
+            popCenter.y = 16.0;
         } else if (popCenter.x < W / 2.0) {
             popCenter.x = (prefs_buttonSize / 2.0) + 2; 
         } else { 
@@ -558,7 +558,7 @@ static const CGFloat prefs_sensitivity = 1.0;
         HKFDockEdge finalEdge;
         if (finalCenter.y < H * 0.12) {
             finalEdge = HKFDockEdgeTop;
-            finalcenter.y = 16.0;
+            finalCenter.y = 16.0;
             if (finalCenter.x < 60) finalCenter.x = 60;
             if (finalCenter.x > W - 60) finalCenter.x = W - 60;
         } else {
@@ -595,6 +595,7 @@ static const CGFloat prefs_sensitivity = 1.0;
     });
 }
 %end
+
 
 
 
