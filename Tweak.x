@@ -53,7 +53,7 @@ static const CGFloat prefs_sensitivity = 1.0;
         blurView.clipsToBounds = YES;
         [_wheelView addSubview:blurView];
         
-        // 40 steps from +M_PI/2 to -M_PI/2 (180 degrees)
+        // 40 steps from 100% to 0% (180 degrees)
         for (int i = 0; i <= 40; i++) {
             UIView *wrapper = [[UIView alloc] initWithFrame:self.bounds];
             UIView *tick = [[UIView alloc] init];
@@ -64,18 +64,20 @@ static const CGFloat prefs_sensitivity = 1.0;
             CGFloat tickW = isMajor ? 16.0 : 8.0;
             CGFloat tickH = 2.0;
             
-            if (isLeft) {
-                tick.frame = CGRectMake(frame.size.width - tickW - 4, (frame.size.height - tickH) / 2.0, tickW, tickH);
-            } else {
-                tick.frame = CGRectMake(4, (frame.size.height - tickH) / 2.0, tickW, tickH);
-            }
-            
+            // LUÔN VẼ Ở MÉP PHẢI CỦA WRAPPER (Sẽ được quay tới đúng vị trí)
+            tick.frame = CGRectMake(frame.size.width - tickW - 4, (frame.size.height - tickH) / 2.0, tickW, tickH);
             tick.layer.cornerRadius = 1.0;
             [wrapper addSubview:tick];
             
-            // i=0 -> 100%, i=40 -> 0%
-            // 100% vẽ ở +90 độ (dưới cùng). 0% vẽ ở -90 độ (trên cùng)
-            CGFloat tickAngle = (M_PI / 2.0) - (i / 40.0) * M_PI;
+            CGFloat tickAngle;
+            if (isLeft) {
+                // Tâm hiển thị ở mép Phải (0 độ). Dải vạch từ Dưới (+90) lên Trên (-90)
+                tickAngle = (M_PI / 2.0) - (i / 40.0) * M_PI;
+            } else {
+                // Tâm hiển thị ở mép Trái (180 độ). Dải vạch từ Dưới (+90) qua Trái (+180) lên Trên (+270)
+                tickAngle = (M_PI / 2.0) + (i / 40.0) * M_PI;
+            }
+            
             wrapper.transform = CGAffineTransformMakeRotation(tickAngle);
             [_wheelView addSubview:wrapper];
             
@@ -88,13 +90,12 @@ static const CGFloat prefs_sensitivity = 1.0;
                 lbl.font = [UIFont boldSystemFontOfSize:12];
                 lbl.textAlignment = NSTextAlignmentCenter;
                 
-                if (isLeft) {
-                    lbl.center = CGPointMake(frame.size.width - 36, frame.size.height / 2.0);
-                } else {
-                    lbl.center = CGPointMake(36, frame.size.height / 2.0);
-                }
+                // LUÔN VẼ SỐ Ở MÉP PHẢI CỦA WRAPPER
+                lbl.center = CGPointMake(frame.size.width - 36, frame.size.height / 2.0);
                 [wrapper addSubview:lbl];
-                lbl.transform = CGAffineTransformMakeRotation(-tickAngle); // Giữ số luôn thẳng đứng so với tâm
+                
+                // Xoay ngược lại số để nó luôn thẳng đứng
+                lbl.transform = CGAffineTransformMakeRotation(-tickAngle); 
             }
         }
         
