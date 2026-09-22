@@ -3,6 +3,10 @@
 #import <MediaPlayer/MediaPlayer.h>
 #import <objc/runtime.h>
 
+#pragma clang diagnostic ignored "-Wunguarded-availability-new"
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+
 static const CGFloat kEdgeWidth = 55.0;
 static const CGFloat kClockAreaHalfW = 70.0;
 static const CGFloat kClockAreaHeight = 30.0;
