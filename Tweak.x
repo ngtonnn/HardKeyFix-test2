@@ -7,11 +7,18 @@
 #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 
-static const CGFloat kEdgeWidth = 55.0;
-static const CGFloat kClockAreaHalfW = 70.0;
-static const CGFloat kClockAreaHeight = 30.0;
-static const CGFloat kVolumePerPoint = 0.006;
+// Khai báo API ẩn của iOS để chụp màn hình
+@interface SBScreenShotter : NSObject
++ (instancetype)sharedInstance;
+- (void)saveScreenshot:(BOOL)saveToPhotos;
+@end
 
+// Hằng số vùng vuốt
+static const CGFloat kTopAreaHeight = 45.0; // Chiều cao thanh trạng thái (cho dư ra chút để dễ bấm)
+static const CGFloat kClockAreaHalfW = 80.0; // Vùng giữa đồng hồ để chụp màn hình
+static const CGFloat kVolumePerPointX = 0.005; // Độ nhạy khi vuốt ngang (1 point = 0.5% âm lượng)
+
+// Hàm đổi âm lượng bằng thanh ẩn
 static void HKF_SetSystemVolume(float volume) {
     volume = MAX(0.0f, MIN(1.0f, volume));
     static MPVolumeView *_hiddenVolumeView = nil;
@@ -41,12 +48,13 @@ static void HKF_SetSystemVolume(float volume) {
     });
 }
 
+// Cửa sổ trong suốt nhận cảm ứng
 @interface HKFGestureWindow : UIWindow <UIGestureRecognizerDelegate>
 @end
 
 @implementation HKFGestureWindow {
     float _volumeAtGestureStart;
-    CGFloat _panStartY;
+    CGFloat _panStartX;
     BOOL _volumePanActive;
 }
 
@@ -72,6 +80,7 @@ static void HKF_SetSystemVolume(float volume) {
 - (void)_setup {
     self.frame = [UIScreen mainScreen].bounds;
     self.backgroundColor = [UIColor clearColor];
+    // Nổi trên cùng (chặn StatusBar)
     self.windowLevel = UIWindowLevelStatusBar + 100;
     self.userInteractionEnabled = YES;
     self.hidden = NO;
@@ -81,12 +90,14 @@ static void HKF_SetSystemVolume(float volume) {
     rootVC.view.userInteractionEnabled = YES;
     self.rootViewController = rootVC;
 
+    // Cử chỉ vuốt (Pan)
     UIPanGestureRecognizer *panGR = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(_handleVolumePan:)];
     panGR.delegate = self;
     panGR.maximumNumberOfTouches = 1;
     panGR.minimumNumberOfTouches = 1;
     [rootVC.view addGestureRecognizer:panGR];
 
+    // Cử chỉ chạm 2 lần (Double Tap)
     UITapGestureRecognizer *tapGR = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(_handleScreenshotTap:)];
     tapGR.numberOfTapsRequired = 2;
     tapGR.numberOfTouchesRequired = 1;
@@ -96,49 +107,53 @@ static void HKF_SetSystemVolume(float volume) {
     _volumePanActive = NO;
 }
 
+// Chỉ nhận cảm ứng ở khu vực StatusBar (trên cùng)
 - (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent *)event {
-    CGFloat W = self.bounds.size.width;
-    CGFloat H = self.bounds.size.height;
-    CGRect volumeZone = CGRectMake(0, 0, kEdgeWidth, H / 2.0);
-    CGRect clockZone = CGRectMake(W / 2.0 - kClockAreaHalfW, 0, kClockAreaHalfW * 2, kClockAreaHeight);
-    return CGRectContainsPoint(volumeZone, point) || CGRectContainsPoint(clockZone, point);
+    if (point.y <= kTopAreaHeight) {
+        return YES;
+    }
+    return NO;
 }
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gr shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)other {
     return NO;
 }
 
+// Lọc cử chỉ: Vuốt có thể mọi nơi trên StatusBar, Double Tap chỉ ở giữa (Đồng hồ)
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gr shouldReceiveTouch:(UITouch *)touch {
     CGPoint pt = [touch locationInView:self];
     CGFloat W = self.bounds.size.width;
-    CGFloat H = self.bounds.size.height;
-    if ([gr isKindOfClass:[UIPanGestureRecognizer class]]) {
-        return (pt.x <= kEdgeWidth && pt.y <= H / 2.0);
-    }
+
+    if (pt.y > kTopAreaHeight) return NO;
+
     if ([gr isKindOfClass:[UITapGestureRecognizer class]]) {
-        CGRect clockZone = CGRectMake(W / 2.0 - kClockAreaHalfW, 0, kClockAreaHalfW * 2, kClockAreaHeight);
+        // Vùng đồng hồ (ở giữa màn hình)
+        CGRect clockZone = CGRectMake(W / 2.0 - kClockAreaHalfW, 0, kClockAreaHalfW * 2, kTopAreaHeight);
         return CGRectContainsPoint(clockZone, pt);
+    }
+    
+    // Vuốt ngang (ở bất kỳ đâu trên phần đỉnh màn hình)
+    if ([gr isKindOfClass:[UIPanGestureRecognizer class]]) {
+        return YES;
     }
     return NO;
 }
 
 - (void)_handleVolumePan:(UIPanGestureRecognizer *)gr {
     CGPoint location = [gr locationInView:self];
-    CGFloat H = self.bounds.size.height;
-    if (location.x > kEdgeWidth || location.y > H / 2.0) {
-        if (gr.state == UIGestureRecognizerStateBegan) _volumePanActive = NO;
-        return;
-    }
+    
     switch (gr.state) {
         case UIGestureRecognizerStateBegan:
-            _panStartY = location.y;
+            _panStartX = location.x;
             _volumeAtGestureStart = [AVAudioSession sharedInstance].outputVolume;
             _volumePanActive = YES;
             break;
         case UIGestureRecognizerStateChanged: {
             if (!_volumePanActive) return;
-            CGFloat delta = (_panStartY - location.y) * kVolumePerPoint;
-            float newVol = _volumeAtGestureStart + (float)delta;
+            // Vuốt phải (location.x lớn hơn _panStartX) => deltaX dương => Tăng âm lượng
+            // Vuốt trái (location.x nhỏ hơn _panStartX) => deltaX âm => Giảm âm lượng
+            CGFloat deltaX = (location.x - _panStartX) * kVolumePerPointX;
+            float newVol = _volumeAtGestureStart + (float)deltaX;
             newVol = MAX(0.0f, MIN(1.0f, newVol));
             HKF_SetSystemVolume(newVol);
             break;
@@ -155,18 +170,10 @@ static void HKF_SetSystemVolume(float volume) {
 
 - (void)_handleScreenshotTap:(UITapGestureRecognizer *)gr {
     if (gr.state != UIGestureRecognizerStateRecognized) return;
-    Class shotterClass = NSClassFromString(@"SBScreenShotter");
-    if (shotterClass) {
-        id shotter = [shotterClass performSelector:@selector(sharedInstance)];
-        if ([shotter respondsToSelector:@selector(saveScreenshot:)]) {
-            [shotter performSelector:@selector(saveScreenshot:) withObject:@(YES)];
-            return;
-        }
-    }
-    UIApplication *app = [UIApplication sharedApplication];
-    SEL sel = NSSelectorFromString(@"_performScreenshot");
-    if ([app respondsToSelector:sel]) {
-        [app performSelector:sel];
+    
+    // Gọi lệnh chụp màn hình trực tiếp bằng hàm chuẩn của iOS
+    if (NSClassFromString(@"SBScreenShotter")) {
+        [[objc_getClass("SBScreenShotter") sharedInstance] saveScreenshot:YES];
     }
 }
 
