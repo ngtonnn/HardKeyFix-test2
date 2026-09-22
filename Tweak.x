@@ -213,12 +213,6 @@ static const CGFloat prefs_sensitivity = 1.0;
         }
     }
     
-    Class SecureWindowClass = NSClassFromString(@"SBSecureWindow");
-    Class TargetWindowClass = SecureWindowClass ? SecureWindowClass : [UIWindow class];
-    
-    // Ghi đè class tại runtime để kế thừa SBSecureWindow nếu có, nếu không thì dùng HKFWindow
-    // Tuy nhiên, cách an toàn nhất trên iOS 16 là dùng thẳng HKFWindow và gán _canShowWhileLocked.
-    
     if (targetScene) {
         self.floatingWindow = [[HKFWindow alloc] initWithWindowScene:targetScene];
     } else {
