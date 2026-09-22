@@ -342,7 +342,6 @@ static const CGFloat prefs_sensitivity = 1.0;
 - (void)_handleDoubleTap:(UITapGestureRecognizer *)gr {
     [self _resetIdleTimer];
     
-    self.floatingWindow.hidden = UIWindow.isAccessibilityCategory; // or just hidden = YES
     self.floatingWindow.hidden = YES;
     
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
