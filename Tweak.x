@@ -143,17 +143,19 @@ static const CGFloat prefs_sensitivity = 1.0;
 
 // --- Floating Widget Controller ---
 
-// PassThrough View để xuyên thấu cảm ứng
-@interface HKFPassThroughView : UIView
+@interface HKFWindow : UIWindow
 @property (nonatomic, weak) UIView *buttonView;
 @property (nonatomic, weak) UIView *dialView;
 @end
 
-@implementation HKFPassThroughView
+@implementation HKFWindow
+- (BOOL)_canShowWhileLocked {
+    return YES;
+}
 - (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent *)event {
     if (self.buttonView && CGRectContainsPoint(self.buttonView.frame, point)) return YES;
     if (self.dialView && CGRectContainsPoint(self.dialView.frame, point)) return YES;
-    return NO;
+    return NO; // Xuyên thấu cảm ứng xuống dưới
 }
 @end
 
@@ -211,25 +213,24 @@ static const CGFloat prefs_sensitivity = 1.0;
         }
     }
     
-    // Sử dụng SBSecureWindow (nếu có) để auto-bypass màn hình khóa an toàn tuyệt đối
     Class SecureWindowClass = NSClassFromString(@"SBSecureWindow");
-    if (!SecureWindowClass) SecureWindowClass = [UIWindow class];
+    Class TargetWindowClass = SecureWindowClass ? SecureWindowClass : [UIWindow class];
+    
+    // Ghi đè class tại runtime để kế thừa SBSecureWindow nếu có, nếu không thì dùng HKFWindow
+    // Tuy nhiên, cách an toàn nhất trên iOS 16 là dùng thẳng HKFWindow và gán _canShowWhileLocked.
     
     if (targetScene) {
-        self.floatingWindow = [[SecureWindowClass alloc] initWithWindowScene:targetScene];
+        self.floatingWindow = [[HKFWindow alloc] initWithWindowScene:targetScene];
     } else {
-        self.floatingWindow = [[SecureWindowClass alloc] initWithFrame:[UIScreen mainScreen].bounds];
+        self.floatingWindow = [[HKFWindow alloc] initWithFrame:[UIScreen mainScreen].bounds];
     }
     
     self.floatingWindow.backgroundColor = [UIColor clearColor];
     self.floatingWindow.windowLevel = 9999999.0;
     self.floatingWindow.userInteractionEnabled = YES;
     
-    HKFPassThroughView *passView = [[HKFPassThroughView alloc] initWithFrame:self.floatingWindow.bounds];
-    passView.backgroundColor = [UIColor clearColor];
-    
     HKFRootViewController *rootVC = [HKFRootViewController new];
-    rootVC.view = passView;
+    rootVC.view.backgroundColor = [UIColor clearColor];
     self.floatingWindow.rootViewController = rootVC;
     
     _lightFeedback = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
@@ -287,7 +288,8 @@ static const CGFloat prefs_sensitivity = 1.0;
     centerDot.userInteractionEnabled = NO;
     [_buttonView addSubview:centerDot];
     
-    passView.buttonView = _buttonView; // Truyền reference cho PassThrough
+    HKFWindow *passWin = (HKFWindow *)self.floatingWindow;
+    passWin.buttonView = _buttonView; 
     [rootVC.view addSubview:_buttonView];
     
     _buttonView.alpha = prefs_idleOpacity;
@@ -390,8 +392,8 @@ static const CGFloat prefs_sensitivity = 1.0;
         _dialView.alpha = 0.0;
         [self.floatingWindow.rootViewController.view insertSubview:_dialView belowSubview:_buttonView];
         
-        HKFPassThroughView *passView = (HKFPassThroughView *)self.floatingWindow.rootViewController.view;
-        passView.dialView = _dialView; // Gắn reference
+        HKFWindow *passWin = (HKFWindow *)self.floatingWindow;
+        passWin.dialView = _dialView; // Gắn reference
         
         [UIView animateWithDuration:0.3 delay:0 usingSpringWithDamping:0.7 initialSpringVelocity:0 options:UIViewAnimationOptionCurveEaseOut animations:^{
             _dialView.transform = CGAffineTransformIdentity;
@@ -436,8 +438,8 @@ static const CGFloat prefs_sensitivity = 1.0;
         } completion:^(BOOL finished) {
             [_dialView removeFromSuperview];
             _dialView = nil;
-            HKFPassThroughView *passView = (HKFPassThroughView *)self.floatingWindow.rootViewController.view;
-            passView.dialView = nil;
+            HKFWindow *passWin = (HKFWindow *)self.floatingWindow;
+            passWin.dialView = nil;
         }];
         [self _resetIdleTimer];
     }
