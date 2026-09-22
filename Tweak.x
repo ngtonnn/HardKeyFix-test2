@@ -38,6 +38,70 @@ static void ReloadPrefs() {
     if (timeout) prefs_idleTimeout = [timeout floatValue];
 }
 
+// --- Camera Zoom Style Dial View ---
+@interface HKFDialView : UIView
+@property (nonatomic, strong) UIView *wheelView;
+@property (nonatomic, assign) BOOL isLeftEdge;
+- (instancetype)initWithFrame:(CGRect)frame isLeft:(BOOL)isLeft;
+- (void)rotateToOffset:(CGFloat)offsetY;
+@end
+
+@implementation HKFDialView
+- (instancetype)initWithFrame:(CGRect)frame isLeft:(BOOL)isLeft {
+    self = [super initWithFrame:frame];
+    if (self) {
+        _isLeftEdge = isLeft;
+        
+        _wheelView = [[UIView alloc] initWithFrame:self.bounds];
+        _wheelView.layer.cornerRadius = frame.size.width / 2.0;
+        _wheelView.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.6];
+        
+        UIBlurEffect *blur = [UIBlurEffect effectWithStyle:UIBlurEffectStyleDark];
+        UIVisualEffectView *blurView = [[UIVisualEffectView alloc] initWithEffect:blur];
+        blurView.frame = _wheelView.bounds;
+        blurView.layer.cornerRadius = frame.size.width / 2.0;
+        blurView.clipsToBounds = YES;
+        [_wheelView addSubview:blurView];
+        
+        int numTicks = 48; // Số vạch kẻ
+        for (int i = 0; i < numTicks; i++) {
+            UIView *wrapper = [[UIView alloc] initWithFrame:self.bounds];
+            UIView *tick = [[UIView alloc] init];
+            
+            BOOL isMajor = (i % 4 == 0);
+            tick.backgroundColor = isMajor ? [UIColor whiteColor] : [UIColor colorWithWhite:0.6 alpha:1.0];
+            
+            CGFloat tickW = isMajor ? 16.0 : 8.0;
+            CGFloat tickH = 2.0;
+            
+            if (isLeft) {
+                // Ticks nằm ở mép phải của bánh xe
+                tick.frame = CGRectMake(frame.size.width - tickW - 4, (frame.size.height - tickH) / 2.0, tickW, tickH);
+            } else {
+                // Ticks nằm ở mép trái của bánh xe
+                tick.frame = CGRectMake(4, (frame.size.height - tickH) / 2.0, tickW, tickH);
+            }
+            
+            tick.layer.cornerRadius = 1.0;
+            [wrapper addSubview:tick];
+            
+            wrapper.transform = CGAffineTransformMakeRotation(i * (M_PI * 2.0 / numTicks));
+            [_wheelView addSubview:wrapper];
+        }
+        
+        [self addSubview:_wheelView];
+    }
+    return self;
+}
+
+- (void)rotateToOffset:(CGFloat)offsetY {
+    // Đảo ngược chiều quay để hợp với hướng vuốt
+    CGFloat angle = -offsetY / 30.0;
+    _wheelView.transform = CGAffineTransformMakeRotation(angle);
+}
+@end
+
+
 // --- Floating Widget ---
 @interface HKFFloatingWindow : UIWindow <UIGestureRecognizerDelegate>
 @end
@@ -47,12 +111,13 @@ static void ReloadPrefs() {
     NSTimer *_idleTimer;
     BOOL _isIdle;
     
-    // Volume
+    // Volume & Dial
     float _volumeAtGestureStart;
     CGFloat _panStartY;
     int _lastHapticStep;
     MPVolumeView *_hiddenVolumeView;
     UISlider *_volumeSlider;
+    HKFDialView *_dialView;
     
     // Dragging
     CGPoint _dragStartCenter;
@@ -111,7 +176,6 @@ static void ReloadPrefs() {
     _buttonView.layer.borderWidth = 1.5;
     _buttonView.layer.borderColor = [UIColor colorWithWhite:1.0 alpha:0.3].CGColor;
     
-    // Thêm hiệu ứng mờ (blur)
     UIBlurEffect *blur = [UIBlurEffect effectWithStyle:UIBlurEffectStyleDark];
     UIVisualEffectView *blurView = [[UIVisualEffectView alloc] initWithEffect:blur];
     blurView.frame = _buttonView.bounds;
@@ -135,7 +199,6 @@ static void ReloadPrefs() {
     longPressGR.minimumPressDuration = 0.5;
     [_buttonView addGestureRecognizer:longPressGR];
 
-    // Lắng nghe thay đổi cài đặt
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_prefsChanged) name:@"com.yourname.hardkeyfix/ReloadPrefs" object:nil];
     
     _isIdle = NO;
@@ -149,7 +212,7 @@ static void ReloadPrefs() {
 
 // Xuyên thấu cảm ứng, chỉ bắt trên nút
 - (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent *)event {
-    return CGRectContainsPoint(_buttonView.frame, point);
+    return CGRectContainsPoint(_buttonView.frame, point) || (_dialView && CGRectContainsPoint(_dialView.frame, point));
 }
 
 // --- Trạng thái nghỉ (Idle) ---
@@ -165,13 +228,13 @@ static void ReloadPrefs() {
     [UIView animateWithDuration:0.4 delay:0 options:UIViewAnimationOptionCurveEaseOut animations:^{
         _buttonView.alpha = prefs_idleOpacity;
         
-        // Edge Docking (Tự động lún vào viền 1 nửa)
+        // Edge Docking (Lún vào viền)
         CGFloat W = self.bounds.size.width;
         CGPoint center = _buttonView.center;
         if (center.x < W / 2.0) {
-            center.x = 0; // lún vào mép trái
+            center.x = 0; // lún mép trái
         } else {
-            center.x = W; // lún vào mép phải
+            center.x = W; // lún mép phải
         }
         _buttonView.center = center;
     } completion:nil];
@@ -185,7 +248,6 @@ static void ReloadPrefs() {
     [UIView animateWithDuration:0.2 animations:^{
         _buttonView.alpha = 1.0;
         
-        // Kéo ra khỏi viền
         CGFloat W = self.bounds.size.width;
         CGFloat radius = _buttonView.bounds.size.width / 2.0;
         CGPoint center = _buttonView.center;
@@ -219,50 +281,82 @@ static void ReloadPrefs() {
     }
 }
 
-// 2. Vuốt âm lượng
+// 2. Vuốt âm lượng (Với hiệu ứng Dial quay)
 - (void)_handleVolumePan:(UIPanGestureRecognizer *)gr {
     [self _wakeUp];
     CGPoint location = [gr locationInView:self];
     
+    if (!_volumeSlider) return;
+
     if (gr.state == UIGestureRecognizerStateBegan) {
         _panStartY = location.y;
-        _volumeAtGestureStart = _volumeSlider ? _volumeSlider.value : 0.5;
+        _volumeAtGestureStart = _volumeSlider.value;
         _lastHapticStep = 0;
+        
+        // Hiển thị vòng xoay Dial
+        CGFloat W = self.bounds.size.width;
+        BOOL isLeft = (_buttonView.center.x < W / 2.0);
+        
+        _dialView = [[HKFDialView alloc] initWithFrame:CGRectMake(0, 0, 180, 180) isLeft:isLeft];
+        _dialView.center = _buttonView.center;
+        _dialView.transform = CGAffineTransformMakeScale(0.1, 0.1);
+        _dialView.alpha = 0.0;
+        [self.rootViewController.view insertSubview:_dialView belowSubview:_buttonView];
+        
+        [UIView animateWithDuration:0.3 delay:0 usingSpringWithDamping:0.7 initialSpringVelocity:0 options:UIViewAnimationOptionCurveEaseOut animations:^{
+            _dialView.transform = CGAffineTransformIdentity;
+            _dialView.alpha = 1.0;
+            _buttonView.alpha = 0.0; // Ẩn nút gốc đi
+        } completion:nil];
+        
+        UIImpactFeedbackGenerator *feedback = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleHeavy];
+        [feedback impactOccurred];
+        
     } 
     else if (gr.state == UIGestureRecognizerStateChanged) {
-        CGFloat deltaY = location.y - _panStartY; // Vuốt lên -> delta âm
+        CGFloat deltaY = location.y - _panStartY; 
         
-        // 20 pixel cho 1 nấc âm lượng (1 nấc = 0.0625)
+        // Xoay vòng Dial
+        [_dialView rotateToOffset:deltaY];
+        
+        // Tính toán âm lượng (20 pixel = 1 nấc)
         int steps = (int)(-deltaY / 20.0);
         
         if (steps != _lastHapticStep) {
             _lastHapticStep = steps;
             
-            // Rung phản hồi
+            // Rung khi nhảy nấc
             UIImpactFeedbackGenerator *feedback = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
             [feedback impactOccurred];
             
             float newVol = _volumeAtGestureStart + (steps * 0.0625);
             newVol = MAX(0.0f, MIN(1.0f, newVol));
             
-            if (_volumeSlider) {
-                [_volumeSlider setValue:newVol animated:NO];
-                [_volumeSlider sendActionsForControlEvents:UIControlEventTouchUpInside];
-            }
+            [_volumeSlider setValue:newVol animated:NO];
+            [_volumeSlider sendActionsForControlEvents:UIControlEventTouchUpInside];
         }
     }
     else {
+        // Kết thúc vuốt, ẩn vòng Dial và hiện lại nút
+        [UIView animateWithDuration:0.3 animations:^{
+            _dialView.transform = CGAffineTransformMakeScale(0.1, 0.1);
+            _dialView.alpha = 0.0;
+            _buttonView.alpha = 1.0;
+        } completion:^(BOOL finished) {
+            [_dialView removeFromSuperview];
+            _dialView = nil;
+        }];
+        
         [self _resetIdleTimer];
     }
 }
 
-// 3. Nhấn giữ để kéo di chuyển
+// 3. Nhấn giữ để di chuyển
 - (void)_handleLongPressMove:(UILongPressGestureRecognizer *)gr {
     [self _wakeUp];
-    
     if (prefs_lockPosition) {
         [self _resetIdleTimer];
-        return; // Khóa vị trí thì không cho di chuyển
+        return;
     }
     
     CGPoint location = [gr locationInView:self];
@@ -271,9 +365,8 @@ static void ReloadPrefs() {
         _dragStartCenter = _buttonView.center;
         _dragStartTouch = location;
         
-        // Phóng to nhẹ để báo hiệu đang di chuyển
         [UIView animateWithDuration:0.2 animations:^{
-            _buttonView.transform = CGAffineTransformMakeScale(1.1, 1.1);
+            _buttonView.transform = CGAffineTransformMakeScale(1.2, 1.2);
         }];
         
         UIImpactFeedbackGenerator *feedback = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleMedium];
@@ -284,22 +377,21 @@ static void ReloadPrefs() {
         CGFloat dy = location.y - _dragStartTouch.y;
         _buttonView.center = CGPointMake(_dragStartCenter.x + dx, _dragStartCenter.y + dy);
     }
-    else { // Ended / Cancelled
-        // Giới hạn trong Safe Area và hút về viền gần nhất
+    else {
         CGFloat W = self.bounds.size.width;
         CGFloat H = self.bounds.size.height;
         CGFloat radius = _buttonView.bounds.size.width / 2.0;
         
         CGPoint finalCenter = _buttonView.center;
         
-        // Hút ngang
+        // Hút vào mép trái/phải
         if (finalCenter.x < W / 2.0) {
             finalCenter.x = radius + 5;
         } else {
             finalCenter.x = W - radius - 5;
         }
         
-        // Giới hạn dọc (tránh tai thỏ và home bar)
+        // Cản trên/dưới an toàn
         CGFloat topSafeArea = 50.0;
         CGFloat bottomSafeArea = H - 50.0;
         if (finalCenter.y < topSafeArea) finalCenter.y = topSafeArea;
@@ -320,8 +412,6 @@ static void ReloadPrefs() {
 - (void)applicationDidFinishLaunching:(id)application {
     %orig;
     ReloadPrefs();
-    
-    // Đăng ký nhận thông báo thay đổi cấu hình từ file
     CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, (CFNotificationCallback)ReloadPrefs, CFSTR("com.yourname.hardkeyfix/ReloadPrefs"), NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
     
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
