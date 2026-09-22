@@ -392,9 +392,7 @@ static const CGFloat prefs_sensitivity = 1.0;
     if (!_isIdle) return;
     _isIdle = NO;
     
-    [UIView animateWithDuration:0.2 animations:^{
-        _buttonView.alpha = 1.0;
-    }];
+    [UIView animateWithDuration:0.2 delay:0 options:UIViewAnimationOptionAllowUserInteraction animations:^{ _buttonView.alpha = 1.0; } completion:nil];
 }
 
 - (void)_handleDoubleTap:(UITapGestureRecognizer *)gr {
@@ -521,10 +519,7 @@ static const CGFloat prefs_sensitivity = 1.0;
             popCenter.x = W - (prefs_buttonSize / 2.0) - 2; 
         }
         
-        [UIView animateWithDuration:0.2 animations:^{
-            self.floatingWindow.center = popCenter;
-            self.floatingWindow.transform = CGAffineTransformMakeScale(1.1, 1.1);
-        }];
+        [UIView animateWithDuration:0.2 delay:0 options:UIViewAnimationOptionAllowUserInteraction animations:^{ self.floatingWindow.center = popCenter; self.floatingWindow.transform = CGAffineTransformMakeScale(1.1, 1.1); } completion:nil];
         _dragStartCenter = popCenter;
         
         [_mediumFeedback prepare];
@@ -544,10 +539,7 @@ static const CGFloat prefs_sensitivity = 1.0;
         }
         
         if (edgePreview != _currentEdge) {
-            [UIView animateWithDuration:0.2 animations:^{
-                [self _updateShapeForEdge:edgePreview];
-                [_lightFeedback impactOccurred];
-            }];
+            [UIView animateWithDuration:0.2 delay:0 options:UIViewAnimationOptionAllowUserInteraction animations:^{ [self _updateShapeForEdge:edgePreview]; [_lightFeedback impactOccurred]; } completion:nil];
         }
     }
     else {
@@ -595,6 +587,7 @@ static const CGFloat prefs_sensitivity = 1.0;
     });
 }
 %end
+
 
 
 
