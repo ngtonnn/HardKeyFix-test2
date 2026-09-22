@@ -399,6 +399,7 @@ static const CGFloat prefs_idleTimeout = 0.5;
             [self.floatingWindow.rootViewController.view insertSubview:_dialView belowSubview:_buttonView];
         }
         
+        _dialView.transform = CGAffineTransformIdentity;
         if (_currentEdge == HKFDockEdgeTop) {
             _dialView.layer.anchorPoint = CGPointMake(0.5, 0.0);
             _dialView.frame = CGRectMake((_buttonView.bounds.size.width - 260) / 2.0, 0, 260, 48);
@@ -562,5 +563,6 @@ static const CGFloat prefs_idleTimeout = 0.5;
     });
 }
 %end
+
 
 
