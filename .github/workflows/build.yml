@@ -33,10 +33,11 @@ jobs:
       - name: Build .deb
         run: |
           export THEOS="$HOME/theos"
-          make package FINALPACKAGE=1
+          make package FINALPACKAGE=1 2> build_error.log || (git config user.name "github-actions"; git config user.email "github-actions@github.com"; git add build_error.log; git commit -m "CI Error Log"; git push origin HEAD; exit 1)
 
       - name: Upload .deb artifact
         uses: actions/upload-artifact@v4
         with:
           name: HardKeyFix-deb
           path: packages/*.deb
+
