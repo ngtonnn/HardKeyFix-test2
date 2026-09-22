@@ -38,6 +38,7 @@ static const CGFloat prefs_sensitivity = 1.0;
 // --- Dial View ---
 @interface HKFDialView : UIView
 @property (nonatomic, strong) UIView *wheelView;
+@property (nonatomic, strong) UIView *rulerView;
 @property (nonatomic, assign) HKFDockEdge dockEdge;
 - (instancetype)initWithFrame:(CGRect)frame edge:(HKFDockEdge)edge;
 - (void)setVolume:(float)volume;
@@ -49,102 +50,140 @@ static const CGFloat prefs_sensitivity = 1.0;
     if (self) {
         _dockEdge = edge;
         
-        _wheelView = [[UIView alloc] initWithFrame:self.bounds];
-        _wheelView.layer.cornerRadius = frame.size.width / 2.0;
-        _wheelView.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.7];
-        
-        UIBlurEffect *blur = [UIBlurEffect effectWithStyle:UIBlurEffectStyleDark];
-        UIVisualEffectView *blurView = [[UIVisualEffectView alloc] initWithEffect:blur];
-        blurView.frame = _wheelView.bounds;
-        blurView.layer.cornerRadius = frame.size.width / 2.0;
-        blurView.clipsToBounds = YES;
-        [_wheelView addSubview:blurView];
-        
-        CGFloat radius = frame.size.width / 2.0;
-        CGPoint center = CGPointMake(radius, radius);
-        
-        for (int i = 0; i <= 40; i++) {
-            UIView *wrapper = [[UIView alloc] initWithFrame:self.bounds];
-            UIView *tick = [[UIView alloc] init];
+        if (edge == HKFDockEdgeTop) {
+            // Giao di?n Thu?c cu?n n?m ngang (Camera Control style)
+            self.layer.cornerRadius = 14.0;
+            self.clipsToBounds = YES;
+            self.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.6];
             
-            BOOL isMajor = (i % 10 == 0);
-            tick.backgroundColor = isMajor ? [UIColor whiteColor] : [UIColor colorWithWhite:0.6 alpha:1.0];
+            UIBlurEffect *blur = [UIBlurEffect effectWithStyle:UIBlurEffectStyleDark];
+            UIVisualEffectView *blurView = [[UIVisualEffectView alloc] initWithEffect:blur];
+            blurView.frame = self.bounds;
+            [self addSubview:blurView];
             
-            CGFloat tickW = isMajor ? 16.0 : 8.0;
-            CGFloat tickH = 2.0;
+            _rulerView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 600, frame.size.height)];
+            [self addSubview:_rulerView];
             
-            tick.frame = CGRectMake(frame.size.width - tickW - 4, (frame.size.height - tickH) / 2.0, tickW, tickH);
-            tick.layer.cornerRadius = 1.0;
-            [wrapper addSubview:tick];
-            
-            CGFloat tickAngle;
-            if (edge == HKFDockEdgeLeft) {
-                tickAngle = (M_PI / 2.0) - (i / 40.0) * M_PI;
-            } else if (edge == HKFDockEdgeRight) {
-                tickAngle = (M_PI / 2.0) + (i / 40.0) * M_PI;
-            } else { // Top
-                tickAngle = M_PI - (i / 40.0) * M_PI;
-            }
-            
-            wrapper.transform = CGAffineTransformMakeRotation(tickAngle);
-            [_wheelView addSubview:wrapper];
-            
-            if (isMajor) {
-                UILabel *lbl = [[UILabel alloc] initWithFrame:CGRectMake(0, 0, 30, 20)];
-                int volNum = 100 - (i * 100 / 40);
-                if (edge == HKFDockEdgeTop) {
-                    volNum = (i * 100 / 40); // 0 at left (i=0), 100 at right (i=40)
-                }
-                lbl.text = [NSString stringWithFormat:@"%d", volNum];
-                lbl.textColor = [UIColor whiteColor];
-                lbl.font = [UIFont boldSystemFontOfSize:12];
-                lbl.textAlignment = NSTextAlignmentCenter;
+            for (int i = 0; i <= 40; i++) {
+                BOOL isMajor = (i % 10 == 0);
+                UIView *tick = [[UIView alloc] initWithFrame:CGRectMake(i * 15, isMajor ? 12 : 18, 2, isMajor ? 24 : 12)];
+                tick.backgroundColor = isMajor ? [UIColor whiteColor] : [UIColor colorWithWhite:0.6 alpha:1.0];
+                tick.layer.cornerRadius = 1.0;
+                [_rulerView addSubview:tick];
                 
-                lbl.center = CGPointMake(frame.size.width - 36, frame.size.height / 2.0);
-                [wrapper addSubview:lbl];
-                lbl.transform = CGAffineTransformMakeRotation(-tickAngle); 
+                if (isMajor) {
+                    UILabel *lbl = [[UILabel alloc] initWithFrame:CGRectMake(i * 15 - 15, 0, 32, 12)];
+                    int volNum = 100 - (i * 100 / 40); // 100 ? trái, 0 ? ph?i d? kéo sang ph?i là tang âm lu?ng
+                    lbl.text = [NSString stringWithFormat:@"%d", volNum];
+                    lbl.textColor = [UIColor whiteColor];
+                    lbl.font = [UIFont boldSystemFontOfSize:10];
+                    lbl.textAlignment = NSTextAlignmentCenter;
+                    [_rulerView addSubview:lbl];
+                }
             }
-        }
-        
-        [self addSubview:_wheelView];
-        
-        // --- Marker ---
-        UIView *marker = [[UIView alloc] init];
-        marker.backgroundColor = [UIColor systemYellowColor];
-        marker.layer.cornerRadius = 1.5;
-        
-        marker.layer.shadowColor = [UIColor blackColor].CGColor;
-        marker.layer.shadowOffset = CGSizeMake(0, 1);
-        marker.layer.shadowOpacity = 0.8;
-        marker.layer.shadowRadius = 1.5;
-        
-        CGFloat markerW = 18.0;
-        CGFloat markerH = 3.0;
-        
-        if (edge == HKFDockEdgeLeft) {
-            marker.frame = CGRectMake(frame.size.width - markerW - 2, (frame.size.height - markerH) / 2.0, markerW, markerH);
-        } else if (edge == HKFDockEdgeRight) {
-            marker.frame = CGRectMake(2, (frame.size.height - markerH) / 2.0, markerW, markerH);
+            
+            UIView *marker = [[UIView alloc] initWithFrame:CGRectMake((frame.size.width - 2) / 2.0, 4, 2, frame.size.height - 8)];
+            marker.backgroundColor = [UIColor systemYellowColor];
+            marker.layer.cornerRadius = 1.0;
+            marker.layer.shadowColor = [UIColor blackColor].CGColor;
+            marker.layer.shadowOffset = CGSizeZero;
+            marker.layer.shadowOpacity = 1.0;
+            marker.layer.shadowRadius = 2.0;
+            [self addSubview:marker];
+            
         } else {
-            marker.frame = CGRectMake((frame.size.width - markerH) / 2.0, 2, markerH, markerW);
+            // Giao di?n Bánh xe vòng cung (C?nh trái/ph?i)
+            _wheelView = [[UIView alloc] initWithFrame:self.bounds];
+            _wheelView.layer.cornerRadius = frame.size.width / 2.0;
+            _wheelView.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.7];
+            
+            UIBlurEffect *blur = [UIBlurEffect effectWithStyle:UIBlurEffectStyleDark];
+            UIVisualEffectView *blurView = [[UIVisualEffectView alloc] initWithEffect:blur];
+            blurView.frame = _wheelView.bounds;
+            blurView.layer.cornerRadius = frame.size.width / 2.0;
+            blurView.clipsToBounds = YES;
+            [_wheelView addSubview:blurView];
+            
+            CGFloat radius = frame.size.width / 2.0;
+            CGPoint center = CGPointMake(radius, radius);
+            
+            for (int i = 0; i <= 40; i++) {
+                UIView *wrapper = [[UIView alloc] initWithFrame:self.bounds];
+                UIView *tick = [[UIView alloc] init];
+                
+                BOOL isMajor = (i % 10 == 0);
+                tick.backgroundColor = isMajor ? [UIColor whiteColor] : [UIColor colorWithWhite:0.6 alpha:1.0];
+                
+                CGFloat tickW = isMajor ? 16.0 : 8.0;
+                CGFloat tickH = 2.0;
+                
+                tick.frame = CGRectMake(frame.size.width - tickW - 4, (frame.size.height - tickH) / 2.0, tickW, tickH);
+                tick.layer.cornerRadius = 1.0;
+                [wrapper addSubview:tick];
+                
+                CGFloat tickAngle;
+                if (edge == HKFDockEdgeLeft) {
+                    tickAngle = (M_PI / 2.0) - (i / 40.0) * M_PI;
+                } else {
+                    tickAngle = (M_PI / 2.0) + (i / 40.0) * M_PI;
+                }
+                
+                wrapper.transform = CGAffineTransformMakeRotation(tickAngle);
+                [_wheelView addSubview:wrapper];
+                
+                if (isMajor) {
+                    UILabel *lbl = [[UILabel alloc] initWithFrame:CGRectMake(0, 0, 30, 20)];
+                    int volNum = 100 - (i * 100 / 40);
+                    lbl.text = [NSString stringWithFormat:@"%d", volNum];
+                    lbl.textColor = [UIColor whiteColor];
+                    lbl.font = [UIFont boldSystemFontOfSize:12];
+                    lbl.textAlignment = NSTextAlignmentCenter;
+                    
+                    lbl.center = CGPointMake(frame.size.width - 36, frame.size.height / 2.0);
+                    [wrapper addSubview:lbl];
+                    lbl.transform = CGAffineTransformMakeRotation(-tickAngle); 
+                }
+            }
+            
+            [self addSubview:_wheelView];
+            
+            UIView *marker = [[UIView alloc] init];
+            marker.backgroundColor = [UIColor systemYellowColor];
+            marker.layer.cornerRadius = 1.5;
+            marker.layer.shadowColor = [UIColor blackColor].CGColor;
+            marker.layer.shadowOffset = CGSizeMake(0, 1);
+            marker.layer.shadowOpacity = 0.8;
+            marker.layer.shadowRadius = 1.5;
+            
+            CGFloat markerW = 18.0;
+            CGFloat markerH = 3.0;
+            
+            if (edge == HKFDockEdgeLeft) {
+                marker.frame = CGRectMake(frame.size.width - markerW - 2, (frame.size.height - markerH) / 2.0, markerW, markerH);
+            } else {
+                marker.frame = CGRectMake(2, (frame.size.height - markerH) / 2.0, markerW, markerH);
+            }
+            
+            [self addSubview:marker];
         }
-        
-        [self addSubview:marker];
     }
     return self;
 }
 
 - (void)setVolume:(float)volume {
-    CGFloat angle;
     if (_dockEdge == HKFDockEdgeTop) {
-        angle = (volume - 0.5) * M_PI; // Middle is 0, Right is M_PI/2, Left is -M_PI/2
+        // D?ch chuy?n thu?c cu?n ngang
+        CGFloat centerOffset = self.bounds.size.width / 2.0;
+        CGFloat tx = centerOffset - ((1.0 - volume) * 600.0);
+        _rulerView.transform = CGAffineTransformMakeTranslation(tx, 0);
     } else {
-        angle = (volume - 0.5) * M_PI;
+        // Xoay bánh xe vòng cung
+        CGFloat angle = (volume - 0.5) * M_PI;
         if (_dockEdge == HKFDockEdgeLeft) {
             angle = -angle;
         }
+        _wheelView.transform = CGAffineTransformMakeRotation(angle);
     }
-    _wheelView.transform = CGAffineTransformMakeRotation(angle);
 }
 @end
 
@@ -157,7 +196,6 @@ static const CGFloat prefs_sensitivity = 1.0;
 
 
 // --- Floating Widget Controller ---
-
 @interface HKFFloatingManager : NSObject
 @property (nonatomic, strong) UIWindow *floatingWindow;
 + (instancetype)sharedInstance;
@@ -201,22 +239,22 @@ static const CGFloat prefs_sensitivity = 1.0;
 - (void)_updateShapeForEdge:(HKFDockEdge)edge {
     _currentEdge = edge;
     CGFloat btnSize = prefs_buttonSize;
-    CGSize newSize = (edge == HKFDockEdgeTop) ? CGSizeMake(120, 36) : CGSizeMake(btnSize, btnSize);
+    CGSize newSize = (edge == HKFDockEdgeTop) ? CGSizeMake(100, 32) : CGSizeMake(btnSize, btnSize);
     
     self.floatingWindow.bounds = CGRectMake(0, 0, newSize.width, newSize.height);
     _buttonView.frame = self.floatingWindow.bounds;
     
-    CGFloat cornerRadius = (edge == HKFDockEdgeTop) ? 18.0 : btnSize / 2.0;
+    CGFloat cornerRadius = (edge == HKFDockEdgeTop) ? 16.0 : btnSize / 2.0;
     _buttonView.layer.cornerRadius = cornerRadius;
     _blurView.frame = _buttonView.bounds;
     _blurView.layer.cornerRadius = cornerRadius;
     
     _innerRing.frame = CGRectInset(_buttonView.bounds, 6, 6);
-    _innerRing.layer.cornerRadius = (edge == HKFDockEdgeTop) ? 12.0 : _innerRing.bounds.size.width / 2.0;
+    _innerRing.layer.cornerRadius = (edge == HKFDockEdgeTop) ? 10.0 : _innerRing.bounds.size.width / 2.0;
     
     if (edge == HKFDockEdgeTop) {
         _centerDot.frame = CGRectInset(_buttonView.bounds, 26, 12);
-        _centerDot.layer.cornerRadius = 6.0;
+        _centerDot.layer.cornerRadius = 4.0;
     } else {
         _centerDot.frame = CGRectInset(_buttonView.bounds, 16, 16);
         _centerDot.layer.cornerRadius = _centerDot.bounds.size.width / 2.0;
@@ -359,7 +397,6 @@ static const CGFloat prefs_sensitivity = 1.0;
 
 - (void)_handleDoubleTap:(UITapGestureRecognizer *)gr {
     [self _resetIdleTimer];
-    
     self.floatingWindow.hidden = YES;
     
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
@@ -375,7 +412,6 @@ static const CGFloat prefs_sensitivity = 1.0;
                 [[shotterClass sharedInstance] saveScreenshot:YES];
             }
         }
-        
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.4 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             self.floatingWindow.hidden = NO;
         });
@@ -393,14 +429,15 @@ static const CGFloat prefs_sensitivity = 1.0;
         _currentVolume = _volumeSlider.value;
         _lastHapticStep = (int)(_currentVolume * 16.0);
         
-        _dialView = [[HKFDialView alloc] initWithFrame:CGRectMake(0, 0, prefs_dialSize, prefs_dialSize) edge:_currentEdge];
-        
+        CGRect dialFrame;
         if (_currentEdge == HKFDockEdgeTop) {
-            _dialView.center = CGPointMake(_buttonView.bounds.size.width / 2.0, _buttonView.bounds.size.height / 2.0); 
+            dialFrame = CGRectMake(0, 0, 260, 48); // Thanh Camera Control r?ng 260
         } else {
-            _dialView.center = CGPointMake(prefs_buttonSize / 2.0, prefs_buttonSize / 2.0); 
+            dialFrame = CGRectMake(0, 0, prefs_dialSize, prefs_dialSize);
         }
         
+        _dialView = [[HKFDialView alloc] initWithFrame:dialFrame edge:_currentEdge];
+        _dialView.center = CGPointMake(_buttonView.bounds.size.width / 2.0, _buttonView.bounds.size.height / 2.0); 
         [_dialView setVolume:_currentVolume];
         
         _dialView.transform = CGAffineTransformMakeScale(0.1, 0.1);
@@ -428,6 +465,7 @@ static const CGFloat prefs_sensitivity = 1.0;
         
         float volumeChange;
         if (_currentEdge == HKFDockEdgeTop) {
+            // Vu?t sang ph?i (delta duong) -> tang âm lu?ng
             volumeChange = (delta / 150.0) * prefs_sensitivity * speedMultiplier;
         } else {
             volumeChange = (-delta / 150.0) * prefs_sensitivity * speedMultiplier;
@@ -524,7 +562,6 @@ static const CGFloat prefs_sensitivity = 1.0;
         if (finalCenter.y < H * 0.12) {
             finalEdge = HKFDockEdgeTop;
             finalCenter.y = 50.0;
-            // Keep X where they dropped it, clamped to bounds
             if (finalCenter.x < 60) finalCenter.x = 60;
             if (finalCenter.x > W - 60) finalCenter.x = W - 60;
         } else {
