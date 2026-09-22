@@ -126,9 +126,12 @@ static const CGFloat prefs_sensitivity = 1.0;
 }
 
 - (void)setVolume:(float)volume {
-    // volume 0.0 -> quay +90 độ. volume 1.0 -> quay -90 độ.
-    // Xoay ngược chiều kim đồng hồ khi tăng âm lượng (Vuốt lên -> Bánh xe xoay lên)
-    CGFloat angle = -(volume - 0.5) * M_PI;
+    // Nếu ở mép phải (isLeftEdge = NO): Vuốt lên -> bánh xe xoay cùng chiều kim đồng hồ (+)
+    // Nếu ở mép trái (isLeftEdge = YES): Vuốt lên -> bánh xe xoay ngược chiều kim đồng hồ (-)
+    CGFloat angle = (volume - 0.5) * M_PI;
+    if (_isLeftEdge) {
+        angle = -angle;
+    }
     _wheelView.transform = CGAffineTransformMakeRotation(angle);
 }
 @end
