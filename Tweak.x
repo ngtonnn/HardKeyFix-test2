@@ -1,4 +1,6 @@
 #import <UIKit/UIKit.h>
+#import <AVFoundation/AVFoundation.h>
+#import <MediaPlayer/MediaPlayer.h>
 #import <objc/runtime.h>
 
 #pragma clang diagnostic ignored "-Wunguarded-availability-new"
@@ -6,12 +8,6 @@
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 
 // --- Private APIs ---
-@interface SBMediaController : NSObject
-+ (instancetype)sharedInstance;
-- (float)volume;
-- (void)setVolume:(float)volume;
-@end
-
 @interface SpringBoard : UIApplication
 - (id)screenshotManager;
 @end
@@ -28,7 +24,7 @@
 // --- Constants ---
 static const CGFloat kTopAreaHeight = 45.0; // Chiều cao thanh trạng thái
 static const CGFloat kClockAreaHalfW = 80.0; // Vùng đồng hồ
-static const CGFloat kVolumePerPointX = 0.004; // Độ nhạy (tăng/giảm tuỳ khoảng cách vuốt)
+static const CGFloat kVolumePerPointX = 0.005; // Độ nhạy (tăng/giảm tuỳ khoảng cách vuốt)
 
 // --- Gesture Overlay ---
 @interface HKFGestureWindow : UIWindow <UIGestureRecognizerDelegate>
@@ -38,6 +34,9 @@ static const CGFloat kVolumePerPointX = 0.004; // Độ nhạy (tăng/giảm tu�
     float _volumeAtGestureStart;
     CGFloat _panStartX;
     BOOL _volumePanActive;
+    
+    MPVolumeView *_hiddenVolumeView;
+    UISlider *_volumeSlider;
 }
 
 - (instancetype)init {
@@ -70,6 +69,21 @@ static const CGFloat kVolumePerPointX = 0.004; // Độ nhạy (tăng/giảm tu�
     rootVC.view.backgroundColor = [UIColor clearColor];
     rootVC.view.userInteractionEnabled = YES;
     self.rootViewController = rootVC;
+
+    // Sử dụng MPVolumeView nhưng giấu hoàn toàn (alpha = 0.0) để tránh lỗi giao diện
+    _hiddenVolumeView = [[MPVolumeView alloc] initWithFrame:CGRectMake(0, 0, 1, 1)];
+    _hiddenVolumeView.alpha = 0.0;
+    _hiddenVolumeView.clipsToBounds = YES;
+    _hiddenVolumeView.userInteractionEnabled = NO;
+    [rootVC.view addSubview:_hiddenVolumeView];
+    
+    // Lấy thanh trượt ẩn để điều khiển mượt mà
+    for (UIView *view in _hiddenVolumeView.subviews) {
+        if ([view isKindOfClass:[UISlider class]]) {
+            _volumeSlider = (UISlider *)view;
+            break;
+        }
+    }
 
     UIPanGestureRecognizer *panGR = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(_handleVolumePan:)];
     panGR.delegate = self;
@@ -117,18 +131,13 @@ static const CGFloat kVolumePerPointX = 0.004; // Độ nhạy (tăng/giảm tu�
 - (void)_handleVolumePan:(UIPanGestureRecognizer *)gr {
     CGPoint location = [gr locationInView:self];
     
-    // Lấy instance của SBMediaController để chỉnh âm lượng chuẩn xác trên SpringBoard
-    SBMediaController *mediaController = nil;
-    if (NSClassFromString(@"SBMediaController")) {
-        mediaController = [objc_getClass("SBMediaController") sharedInstance];
-    }
-    
-    if (!mediaController) return;
+    if (!_volumeSlider) return;
 
     switch (gr.state) {
         case UIGestureRecognizerStateBegan:
             _panStartX = location.x;
-            _volumeAtGestureStart = [mediaController volume]; // Lấy âm lượng hiện tại chuẩn
+            // Lấy âm lượng hiện tại chuẩn xác trực tiếp từ slider gốc của iOS
+            _volumeAtGestureStart = _volumeSlider.value;
             _volumePanActive = YES;
             break;
         case UIGestureRecognizerStateChanged: {
@@ -138,7 +147,8 @@ static const CGFloat kVolumePerPointX = 0.004; // Độ nhạy (tăng/giảm tu�
             float newVol = _volumeAtGestureStart + (float)deltaX;
             newVol = MAX(0.0f, MIN(1.0f, newVol));
             
-            [mediaController setVolume:newVol];
+            [_volumeSlider setValue:newVol animated:NO];
+            [_volumeSlider sendActionsForControlEvents:UIControlEventTouchUpInside];
             break;
         }
         case UIGestureRecognizerStateEnded:
@@ -154,7 +164,6 @@ static const CGFloat kVolumePerPointX = 0.004; // Độ nhạy (tăng/giảm tu�
 - (void)_handleScreenshotTap:(UITapGestureRecognizer *)gr {
     if (gr.state != UIGestureRecognizerStateRecognized) return;
     
-    // Thử cách 1: dùng SBScreenshotManager của iOS 16
     SpringBoard *sb = (SpringBoard *)[UIApplication sharedApplication];
     if ([sb respondsToSelector:@selector(screenshotManager)]) {
         id manager = [sb screenshotManager];
@@ -164,7 +173,6 @@ static const CGFloat kVolumePerPointX = 0.004; // Độ nhạy (tăng/giảm tu�
         }
     }
     
-    // Thử cách 2: dùng SBScreenShotter cũ
     Class shotterClass = objc_getClass("SBScreenShotter");
     if (shotterClass && [shotterClass respondsToSelector:@selector(sharedInstance)]) {
         id shotter = [shotterClass sharedInstance];
