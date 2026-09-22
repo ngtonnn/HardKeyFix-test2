@@ -139,6 +139,15 @@ static const CGFloat prefs_sensitivity = 1.0;
 
 
 // --- Floating Widget ---
+@interface HKFRootViewController : UIViewController
+@end
+
+@implementation HKFRootViewController
+- (BOOL)_canShowWhileLocked {
+    return YES;
+}
+@end
+
 @interface HKFFloatingWindow : UIWindow <UIGestureRecognizerDelegate>
 @end
 
@@ -184,14 +193,20 @@ static const CGFloat prefs_sensitivity = 1.0;
     return self;
 }
 
+- (BOOL)_canShowWhileLocked {
+    return YES;
+}
+
 - (void)_setup {
     self.frame = [UIScreen mainScreen].bounds;
     self.backgroundColor = [UIColor clearColor];
+    
+    // Window level rất cao để nổi lên trên mọi thứ (kể cả Lock Screen)
     self.windowLevel = UIWindowLevelStatusBar + 1000;
     self.userInteractionEnabled = YES;
     self.hidden = NO;
 
-    UIViewController *rootVC = [UIViewController new];
+    HKFRootViewController *rootVC = [HKFRootViewController new];
     rootVC.view.backgroundColor = [UIColor clearColor];
     self.rootViewController = rootVC;
     
