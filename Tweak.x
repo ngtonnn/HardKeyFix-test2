@@ -2,10 +2,12 @@
 #import <AVFoundation/AVFoundation.h>
 #import <MediaPlayer/MediaPlayer.h>
 #import <objc/runtime.h>
+#import <math.h>
 
 #pragma clang diagnostic ignored "-Wunguarded-availability-new"
 #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#pragma clang diagnostic ignored "-Wunused-parameter"
 
 @interface SpringBoard : UIApplication
 - (id)screenshotManager;
@@ -20,14 +22,12 @@
 - (void)saveScreenshot:(BOOL)saveToPhotos;
 @end
 
-// --- Enum ---
 typedef NS_ENUM(NSInteger, HKFDockEdge) {
     HKFDockEdgeLeft = 0,
     HKFDockEdgeRight,
     HKFDockEdgeTop
 };
 
-// --- Hardcoded Preferences ---
 static const BOOL prefs_lockPosition = NO;
 static const CGFloat prefs_idleOpacity = 0.3; 
 static const CGFloat prefs_idleTimeout = 0.5; 
@@ -35,7 +35,6 @@ static const CGFloat prefs_buttonSize = 55.0;
 static const CGFloat prefs_dialSize = 180.0; 
 static const CGFloat prefs_sensitivity = 1.0;
 
-// --- Dial View ---
 @interface HKFDialView : UIView
 @property (nonatomic, strong) UIView *wheelView;
 @property (nonatomic, strong) UIView *rulerView;
@@ -51,7 +50,6 @@ static const CGFloat prefs_sensitivity = 1.0;
         _dockEdge = edge;
         
         if (edge == HKFDockEdgeTop) {
-            // Giao di?n Thu?c cu?n n?m ngang (Camera Control style)
             self.layer.cornerRadius = 14.0;
             self.clipsToBounds = YES;
             self.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.6];
@@ -73,7 +71,7 @@ static const CGFloat prefs_sensitivity = 1.0;
                 
                 if (isMajor) {
                     UILabel *lbl = [[UILabel alloc] initWithFrame:CGRectMake(i * 15 - 15, 0, 32, 12)];
-                    int volNum = 100 - (i * 100 / 40); // 100 ? trái, 0 ? ph?i d? kéo sang ph?i là tang âm lu?ng
+                    int volNum = 100 - (i * 100 / 40);
                     lbl.text = [NSString stringWithFormat:@"%d", volNum];
                     lbl.textColor = [UIColor whiteColor];
                     lbl.font = [UIFont boldSystemFontOfSize:10];
@@ -92,7 +90,6 @@ static const CGFloat prefs_sensitivity = 1.0;
             [self addSubview:marker];
             
         } else {
-            // Giao di?n Bánh xe vòng cung (C?nh trái/ph?i)
             _wheelView = [[UIView alloc] initWithFrame:self.bounds];
             _wheelView.layer.cornerRadius = frame.size.width / 2.0;
             _wheelView.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.7];
@@ -172,12 +169,10 @@ static const CGFloat prefs_sensitivity = 1.0;
 
 - (void)setVolume:(float)volume {
     if (_dockEdge == HKFDockEdgeTop) {
-        // D?ch chuy?n thu?c cu?n ngang
         CGFloat centerOffset = self.bounds.size.width / 2.0;
         CGFloat tx = centerOffset - ((1.0 - volume) * 600.0);
         _rulerView.transform = CGAffineTransformMakeTranslation(tx, 0);
     } else {
-        // Xoay bánh xe vòng cung
         CGFloat angle = (volume - 0.5) * M_PI;
         if (_dockEdge == HKFDockEdgeLeft) {
             angle = -angle;
@@ -187,15 +182,11 @@ static const CGFloat prefs_sensitivity = 1.0;
 }
 @end
 
-
-// --- System HUD Hider (Hook) ---
 %hook SBVolumeControl
 - (void)presentVolumeHUDWithVolume:(float)arg1 {}
 - (void)_presentVolumeHUDWithVolume:(float)arg1 {}
 %end
 
-
-// --- Floating Widget Controller ---
 @interface HKFFloatingManager : NSObject
 @property (nonatomic, strong) UIWindow *floatingWindow;
 + (instancetype)sharedInstance;
@@ -339,7 +330,7 @@ static const CGFloat prefs_sensitivity = 1.0;
     
     [rootVC.view addSubview:_buttonView];
     
-    [self _updateShapeForEdge:HKFDockEdgeRight]; // Default
+    [self _updateShapeForEdge:HKFDockEdgeRight]; 
     
     _buttonView.alpha = prefs_idleOpacity;
     _isIdle = YES;
@@ -396,6 +387,7 @@ static const CGFloat prefs_sensitivity = 1.0;
 }
 
 - (void)_handleDoubleTap:(UITapGestureRecognizer *)gr {
+    (void)gr;
     [self _resetIdleTimer];
     self.floatingWindow.hidden = YES;
     
@@ -431,7 +423,7 @@ static const CGFloat prefs_sensitivity = 1.0;
         
         CGRect dialFrame;
         if (_currentEdge == HKFDockEdgeTop) {
-            dialFrame = CGRectMake(0, 0, 260, 48); // Thanh Camera Control r?ng 260
+            dialFrame = CGRectMake(0, 0, 260, 48);
         } else {
             dialFrame = CGRectMake(0, 0, prefs_dialSize, prefs_dialSize);
         }
@@ -465,7 +457,6 @@ static const CGFloat prefs_sensitivity = 1.0;
         
         float volumeChange;
         if (_currentEdge == HKFDockEdgeTop) {
-            // Vu?t sang ph?i (delta duong) -> tang âm lu?ng
             volumeChange = (delta / 150.0) * prefs_sensitivity * speedMultiplier;
         } else {
             volumeChange = (-delta / 150.0) * prefs_sensitivity * speedMultiplier;
@@ -537,7 +528,6 @@ static const CGFloat prefs_sensitivity = 1.0;
         CGFloat dy = location.y - _dragStartTouch.y;
         self.floatingWindow.center = CGPointMake(_dragStartCenter.x + dx, _dragStartCenter.y + dy);
         
-        // Dynamically preview shape change
         CGFloat H = [UIScreen mainScreen].bounds.size.height;
         HKFDockEdge edgePreview = HKFDockEdgeRight;
         if (self.floatingWindow.center.y < H * 0.12) {
