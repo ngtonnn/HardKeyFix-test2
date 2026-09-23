@@ -171,32 +171,6 @@ static void HKFScreenshotCB(CFNotificationCenterRef c, void *obs,
 %end
 
 /* ════════════════════════════════════════════════════════════
-   System-wide: Force iPhone X Status Bar (Notch style)
-   This pushes the time to the left and battery/wifi to the right,
-   leaving the center empty so it doesn't overlap with our tweak.
-   ════════════════════════════════════════════════════════════ */
-
-%group StatusBarX
-%hook _UIStatusBarVisualProvider_iOS
-+ (Class)class {
-    return %c(_UIStatusBarVisualProvider_Split58);
-}
-%end
-%end
-
-%group StatusBarXSpacing
-%hook _UIStatusBarVisualProvider_Split58
-+(CGSize)notchSize {
-    CGSize const orig = %orig;
-    return CGSizeMake(orig.width, 18);
-}
-+(double)height {
-    return 20;
-}
-%end
-%end
-
-/* ════════════════════════════════════════════════════════════
    HKFButtonView  –  invisible touch target
    ════════════════════════════════════════════════════════════ */
 
@@ -452,7 +426,7 @@ static void HKFScreenshotCB(CFNotificationCenterRef c, void *obs,
 
     /* ── restore saved position ── */
     NSDictionary *saved = HKFLoadPosition();
-    CGFloat posX = W / 2.0, posY = 16.0;
+    CGFloat posX = W / 2.0, posY = 40.0; // Moved down from 16.0 to avoid status bar
     HKFDockEdge posEdge = HKFDockEdgeTop;
     if (saved) {
         if (saved[@"x"])    posX    = [saved[@"x"] doubleValue];
@@ -462,7 +436,7 @@ static void HKFScreenshotCB(CFNotificationCenterRef c, void *obs,
     /* clamp to screen */
     CGFloat H = scr.size.height;
     if (posX < 0 || posX > W) posX = W/2.0;
-    if (posY < 0 || posY > H) posY = 16.0;
+    if (posY < 0 || posY > H) posY = 40.0; // Moved down from 16.0
 
     [self _updateShapeForEdge:posEdge];
     _buttonView.center = CGPointMake(posX, posY);
@@ -510,7 +484,7 @@ static void HKFScreenshotCB(CFNotificationCenterRef c, void *obs,
                 (_currentEdge == HKFDockEdgeTop) ? 0.0 : kIdleOpacity;
             CGFloat W = [UIScreen mainScreen].bounds.size.width;
             CGPoint c = _buttonView.center;
-            if (_currentEdge == HKFDockEdgeTop)       c.y = 16.0;
+            if (_currentEdge == HKFDockEdgeTop)       c.y = 40.0;
             else if (_currentEdge == HKFDockEdgeLeft)  c.x = 16.0;
             else                                       c.x = W - 16.0;
             _buttonView.center = c;
@@ -755,7 +729,7 @@ static void HKFScreenshotCB(CFNotificationCenterRef c, void *obs,
 
         CGFloat W = [UIScreen mainScreen].bounds.size.width;
         CGPoint pop = _buttonView.center;
-        if      (_currentEdge == HKFDockEdgeTop)  pop.y = 16.0;
+        if      (_currentEdge == HKFDockEdgeTop)  pop.y = 40.0;
         else if (pop.x < W/2.0)                   pop.x = 16.0;
         else                                       pop.x = W - 16.0;
 
@@ -797,7 +771,7 @@ static void HKFScreenshotCB(CFNotificationCenterRef c, void *obs,
 
         if (fc.y < H * 0.12) {
             fe = HKFDockEdgeTop;
-            fc.y = 16.0;
+            fc.y = 40.0;
             CGFloat mx = 110.0;
             if (fc.x < mx)   fc.x = mx;
             if (fc.x > W-mx) fc.x = W-mx;
@@ -840,10 +814,6 @@ static void HKFScreenshotCB(CFNotificationCenterRef c, void *obs,
         if ([[NSBundle mainBundle].bundlePath hasSuffix:@".appex"]) return;
 
         hkf_isSpringBoard = [bid isEqualToString:@"com.apple.springboard"];
-
-        /* System-wide status bar style (notch) */
-        %init(StatusBarX);
-        %init(StatusBarXSpacing);
 
         /* SpringBoard-only hooks (suppress volume HUD) */
         if (hkf_isSpringBoard) {
