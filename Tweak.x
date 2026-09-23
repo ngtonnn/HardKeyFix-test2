@@ -12,6 +12,7 @@
 
 @interface SpringBoard : UIApplication
 - (id)screenshotManager;
+- (UIWindow *)statusBarWindow;
 @end
 
 @interface SBScreenshotManager : NSObject
