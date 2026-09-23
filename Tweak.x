@@ -171,6 +171,32 @@ static void HKFScreenshotCB(CFNotificationCenterRef c, void *obs,
 %end
 
 /* ════════════════════════════════════════════════════════════
+   System-wide: Force iPhone X Status Bar (Notch style)
+   This pushes the time to the left and battery/wifi to the right,
+   leaving the center empty so it doesn't overlap with our tweak.
+   ════════════════════════════════════════════════════════════ */
+
+%group StatusBarX
+%hook _UIStatusBarVisualProvider_iOS
++ (Class)class {
+    return %c(_UIStatusBarVisualProvider_Split58);
+}
+%end
+%end
+
+%group StatusBarXSpacing
+%hook _UIStatusBarVisualProvider_Split58
++(CGSize)notchSize {
+    CGSize const orig = %orig;
+    return CGSizeMake(orig.width, 18);
+}
++(double)height {
+    return 20;
+}
+%end
+%end
+
+/* ════════════════════════════════════════════════════════════
    HKFButtonView  –  invisible touch target
    ════════════════════════════════════════════════════════════ */
 
@@ -249,7 +275,6 @@ static void HKFScreenshotCB(CFNotificationCenterRef c, void *obs,
 - (void)_wakeUp;
 - (void)_dismissDialView;
 - (void)_showDialForCurrentVolume;
-- (void)_handleSingleTap:(UITapGestureRecognizer *)gr;
 - (void)_handleDoubleTap:(UITapGestureRecognizer *)gr;
 - (void)_handleVolumePan:(UIPanGestureRecognizer *)gr;
 - (void)_handleLongPressMove:(UILongPressGestureRecognizer *)gr;
@@ -459,13 +484,6 @@ static void HKFScreenshotCB(CFNotificationCenterRef c, void *obs,
     dblTap.delaysTouchesBegan = NO;
     [_buttonView addGestureRecognizer:dblTap];
 
-    UITapGestureRecognizer *sglTap = [[UITapGestureRecognizer alloc]
-        initWithTarget:self action:@selector(_handleSingleTap:)];
-    sglTap.numberOfTapsRequired = 1;
-    sglTap.delaysTouchesBegan = NO;
-    [sglTap requireGestureRecognizerToFail:dblTap];
-    [_buttonView addGestureRecognizer:sglTap];
-
     UIPanGestureRecognizer *pan = [[UIPanGestureRecognizer alloc]
         initWithTarget:self action:@selector(_handleVolumePan:)];
     pan.delaysTouchesBegan = NO;
@@ -599,13 +617,6 @@ static void HKFScreenshotCB(CFNotificationCenterRef c, void *obs,
 }
 
 /* ── Gesture handlers ── */
-
-- (void)_handleSingleTap:(UITapGestureRecognizer *)gr {
-    if (gr.state == UIGestureRecognizerStateEnded) {
-        [self _wakeUp];
-        [self _showDialForCurrentVolume];
-    }
-}
 
 - (void)_handleDoubleTap:(UITapGestureRecognizer *)gr {
     if (gr.state != UIGestureRecognizerStateEnded) return;
@@ -835,6 +846,10 @@ static void HKFScreenshotCB(CFNotificationCenterRef c, void *obs,
         if ([[NSBundle mainBundle].bundlePath hasSuffix:@".appex"]) return;
 
         hkf_isSpringBoard = [bid isEqualToString:@"com.apple.springboard"];
+
+        /* System-wide status bar style (notch) */
+        %init(StatusBarX);
+        %init(StatusBarXSpacing);
 
         /* SpringBoard-only hooks (suppress volume HUD) */
         if (hkf_isSpringBoard) {
