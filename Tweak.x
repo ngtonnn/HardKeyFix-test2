@@ -8,6 +8,7 @@
 #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #pragma clang diagnostic ignored "-Wunused-parameter"
+#pragma clang diagnostic ignored "-Wunused-variable"
 
 @interface SpringBoard : UIApplication
 - (id)screenshotManager;
@@ -239,7 +240,6 @@ static const CGFloat prefs_idleTimeout = 0.5;
     }
     
     CGFloat W = [UIScreen mainScreen].bounds.size.width;
-    CGFloat H = [UIScreen mainScreen].bounds.size.height;
     
     CGRect windowFrame = CGRectMake((W - 200.0) / 2.0, 0, 200, 32);
     
