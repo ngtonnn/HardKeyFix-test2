@@ -137,6 +137,19 @@ static const CGFloat prefs_idleTimeout = 0.5;
 - (void)_presentVolumeHUDWithVolume:(float)arg1 {}
 %end
 
+@interface HKFButtonView : UIView
+@end
+
+@implementation HKFButtonView
+- (UIView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event {
+    if (!self.userInteractionEnabled || self.hidden) return nil;
+    if ([self pointInside:point withEvent:event]) {
+        return self;
+    }
+    return nil;
+}
+@end
+
 @interface HKFFloatingManager : NSObject
 @property (nonatomic, strong) UIWindow *floatingWindow;
 + (instancetype)sharedInstance;
@@ -154,7 +167,7 @@ static const CGFloat prefs_idleTimeout = 0.5;
 @end
 
 @implementation HKFFloatingManager {
-    UIView *_buttonView;
+    HKFButtonView *_buttonView;
     UIVisualEffectView *_blurView;
     UIView *_innerRing;
     UIView *_centerDot;
@@ -192,7 +205,7 @@ static const CGFloat prefs_idleTimeout = 0.5;
     
     CGSize newSize;
     if (edge == HKFDockEdgeTop) {
-        newSize = CGSizeMake(100, 32);
+        newSize = CGSizeMake(200, 32);
     } else {
         newSize = CGSizeMake(32, 100);
     }
@@ -209,7 +222,7 @@ static const CGFloat prefs_idleTimeout = 0.5;
     _innerRing.layer.cornerRadius = 12.0;
     
     if (edge == HKFDockEdgeTop) {
-        _centerDot.frame = CGRectMake(newSize.width/2.0 - 12, newSize.height/2.0 - 2, 24, 4);
+        _centerDot.frame = CGRectMake(newSize.width/2.0 - 24, newSize.height/2.0 - 2, 48, 4);
     } else {
         _centerDot.frame = CGRectMake(newSize.width/2.0 - 2, newSize.height/2.0 - 12, 4, 24);
     }
@@ -264,7 +277,7 @@ static const CGFloat prefs_idleTimeout = 0.5;
         }
     }
 
-    _buttonView = [[UIView alloc] initWithFrame:self.floatingWindow.bounds];
+    _buttonView = [[HKFButtonView alloc] initWithFrame:self.floatingWindow.bounds];
     _buttonView.backgroundColor = [UIColor colorWithWhite:0.2 alpha:0.8];
     _buttonView.layer.masksToBounds = NO;
     _buttonView.layer.borderWidth = 1.0;
@@ -325,7 +338,7 @@ static const CGFloat prefs_idleTimeout = 0.5;
     _isIdle = YES;
     
     [UIView animateWithDuration:0.4 delay:0 options:UIViewAnimationOptionCurveEaseOut | UIViewAnimationOptionAllowUserInteraction animations:^{
-        _buttonView.alpha = prefs_idleOpacity;
+        _buttonView.alpha = (_currentEdge == HKFDockEdgeTop) ? 0.0 : prefs_idleOpacity;
         CGFloat W = [UIScreen mainScreen].bounds.size.width;
         CGPoint center = self.floatingWindow.center;
         
@@ -457,12 +470,18 @@ static const CGFloat prefs_idleTimeout = 0.5;
         }
     }
     else {
-                [UIView animateWithDuration:0.3 delay:0 options:UIViewAnimationOptionAllowUserInteraction | UIViewAnimationOptionBeginFromCurrentState animations:^{
+        [UIView animateWithDuration:0.3 delay:0 options:UIViewAnimationOptionAllowUserInteraction | UIViewAnimationOptionBeginFromCurrentState animations:^{
             _dialView.transform = CGAffineTransformMakeScale(0.1, 0.1);
             _dialView.alpha = 0.0;
-            _buttonView.alpha = 1.0;
-        } completion:nil];
-        [self _resetIdleTimer];
+            _buttonView.alpha = (_currentEdge == HKFDockEdgeTop) ? 0.0 : 1.0;
+        } completion:^(BOOL finished){
+            if (_currentEdge == HKFDockEdgeTop) {
+                _isIdle = YES;
+            }
+        }];
+        if (_currentEdge != HKFDockEdgeTop) {
+            [self _resetIdleTimer];
+        }
     }
 }
 
@@ -528,8 +547,9 @@ static const CGFloat prefs_idleTimeout = 0.5;
         if (finalCenter.y < H * 0.12) {
             finalEdge = HKFDockEdgeTop;
             finalCenter.y = 16.0;
-            if (finalCenter.x < 60) finalCenter.x = 60;
-            if (finalCenter.x > W - 60) finalCenter.x = W - 60;
+            CGFloat minX = 110.0;
+            if (finalCenter.x < minX) finalCenter.x = minX;
+            if (finalCenter.x > W - minX) finalCenter.x = W - minX;
         } else {
             if (finalCenter.x < W / 2.0) {
                 finalEdge = HKFDockEdgeLeft;
@@ -549,8 +569,19 @@ static const CGFloat prefs_idleTimeout = 0.5;
             [self _updateShapeForEdge:finalEdge];
             self.floatingWindow.center = finalCenter;
             self.floatingWindow.transform = CGAffineTransformIdentity;
-        } completion:nil];
-        [self _resetIdleTimer];
+            if (finalEdge == HKFDockEdgeTop) {
+                _buttonView.alpha = 0.0;
+            } else {
+                _buttonView.alpha = 1.0;
+            }
+        } completion:^(BOOL finished){
+            if (finalEdge == HKFDockEdgeTop) {
+                _isIdle = YES;
+            }
+        }];
+        if (finalEdge != HKFDockEdgeTop) {
+            [self _resetIdleTimer];
+        }
     }
 }
 @end
