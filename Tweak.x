@@ -315,12 +315,10 @@ static const CGFloat prefs_idleTimeout = 0.5;
 
 - (void)setup {
     UIWindowScene *scene = nil;
-    if (@available(iOS 13.0, *)) {
-        for (UIScene *s in [UIApplication sharedApplication].connectedScenes) {
-            if ([s isKindOfClass:[UIWindowScene class]]) {
-                scene = (UIWindowScene *)s;
-                break;
-            }
+    for (UIScene *s in [UIApplication sharedApplication].connectedScenes) {
+        if ([s isKindOfClass:[UIWindowScene class]]) {
+            scene = (UIWindowScene *)s;
+            break;
         }
     }
     
@@ -813,7 +811,7 @@ static const CGFloat prefs_idleTimeout = 0.5;
     %orig;
     dispatch_async(dispatch_get_main_queue(), ^{
         UIWindow *win = [HKFFloatingManager sharedInstance].floatingWindow;
-        if (win && @available(iOS 13.0, *)) {
+        if (win) {
             for (UIScene *s in [UIApplication sharedApplication].connectedScenes) {
                 if ([s isKindOfClass:[UIWindowScene class]]) {
                     UIWindowScene *ws = (UIWindowScene *)s;
