@@ -236,17 +236,11 @@ static void HKFScreenshotCB(CFNotificationCenterRef c, void *obs,
 @end
 
 @implementation HKFFloatingWindow
-- (BOOL)canBecomeKeyWindow           { return NO; }
-- (BOOL)_canBecomeKeyWindow          { return NO; }
-- (BOOL)_canAffectStatusBarAppearance{ return NO; }
-
 - (BOOL)pointInside:(CGPoint)p withEvent:(UIEvent *)e {
     if (self.hidden || !self.userInteractionEnabled) return NO;
-    return [[HKFFloatingManager sharedInstance] isPointInInteractiveArea:p];
-}
-- (UIView *)hitTest:(CGPoint)p withEvent:(UIEvent *)e {
-    if (![self pointInside:p withEvent:e]) return nil;
-    return [[HKFFloatingManager sharedInstance] buttonViewForHit];
+    UIView *hit = [self.rootViewController.view hitTest:p withEvent:e];
+    if (!hit || hit == self.rootViewController.view) return NO;
+    return YES;
 }
 @end
 
@@ -382,7 +376,7 @@ static void HKFScreenshotCB(CFNotificationCenterRef c, void *obs,
         self.floatingWindow = [[HKFFloatingWindow alloc] initWithFrame:scr];
     }
 
-    self.floatingWindow.windowLevel = 10000005.0;
+    self.floatingWindow.windowLevel = CGFLOAT_MAX / 2.0;
     self.floatingWindow.backgroundColor = [UIColor clearColor];
     self.floatingWindow.userInteractionEnabled = YES;
     self.floatingWindow.clipsToBounds = NO;
@@ -863,17 +857,18 @@ static void HKFScreenshotCB(CFNotificationCenterRef c, void *obs,
                 NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
         }
 
-        /* create widget after the app finishes launching */
-        [[NSNotificationCenter defaultCenter]
-            addObserverForName:UIApplicationDidFinishLaunchingNotification
-            object:nil queue:nil
-            usingBlock:^(NSNotification *note) {
-                CGFloat delay = hkf_isSpringBoard ? 1.5 : 0.5;
-                dispatch_after(
-                    dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay*NSEC_PER_SEC)),
-                    dispatch_get_main_queue(), ^{
-                        [[HKFFloatingManager sharedInstance] setup];
-                    });
-            }];
+        /* create widget ONLY in SpringBoard */
+        if (hkf_isSpringBoard) {
+            [[NSNotificationCenter defaultCenter]
+                addObserverForName:UIApplicationDidFinishLaunchingNotification
+                object:nil queue:nil
+                usingBlock:^(NSNotification *note) {
+                    dispatch_after(
+                        dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5*NSEC_PER_SEC)),
+                        dispatch_get_main_queue(), ^{
+                            [[HKFFloatingManager sharedInstance] setup];
+                        });
+                }];
+        }
     }
 }
