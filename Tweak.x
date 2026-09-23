@@ -142,6 +142,11 @@ static const CGFloat prefs_idleTimeout = 0.5;
 @end
 
 @implementation HKFButtonView
+- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent *)event {
+    CGRect hitRect = CGRectInset(self.bounds, -15, -10);
+    return CGRectContainsPoint(hitRect, point);
+}
+
 - (UIView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event {
     if (!self.userInteractionEnabled || self.hidden) return nil;
     if ([self pointInside:point withEvent:event]) {
@@ -149,18 +154,44 @@ static const CGFloat prefs_idleTimeout = 0.5;
     }
     return nil;
 }
+
+- (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {}
+- (void)touchesMoved:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {}
+- (void)touchesEnded:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {}
+- (void)touchesCancelled:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {}
 @end
 
 @interface HKFFloatingWindow : UIWindow
 @end
 
 @implementation HKFFloatingWindow
-- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent *)event {
-    if ([super pointInside:point withEvent:event]) {
-        return YES;
+- (BOOL)_isSecure { return YES; }
++ (BOOL)_isSecure { return YES; }
+- (BOOL)_shouldCreateContextAsSecure { return YES; }
+- (BOOL)_alwaysGetsContexts { return YES; }
+- (BOOL)_canBecomeKeyWindow { return NO; }
+- (BOOL)_canAffectStatusBarAppearance { return NO; }
+
+- (UIView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event {
+    if (self.hidden || !self.userInteractionEnabled) return nil;
+    UIView *hit = [super hitTest:point withEvent:event];
+    if (hit) return hit;
+    for (UIView *sub in self.rootViewController.view.subviews) {
+        if (!sub.hidden && sub.userInteractionEnabled) {
+            CGPoint p = [self convertPoint:point toView:sub];
+            if ([sub pointInside:p withEvent:event]) {
+                return sub;
+            }
+        }
     }
+    return nil;
+}
+
+- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent *)event {
+    if (self.hidden || !self.userInteractionEnabled) return NO;
+    if ([super pointInside:point withEvent:event]) return YES;
     for (UIView *subview in self.rootViewController.view.subviews) {
-        if (!subview.hidden && subview.alpha > 0.01) {
+        if (!subview.hidden) {
             CGPoint p = [self convertPoint:point toView:subview];
             if ([subview pointInside:p withEvent:event]) {
                 return YES;
@@ -190,6 +221,7 @@ static const CGFloat prefs_idleTimeout = 0.5;
 
 @implementation HKFFloatingManager {
     HKFButtonView *_buttonView;
+    UIView *_visualContainer;
     UIVisualEffectView *_blurView;
     UIView *_innerRing;
     UIView *_centerDot;
@@ -237,11 +269,12 @@ static const CGFloat prefs_idleTimeout = 0.5;
     _buttonView.frame = self.floatingWindow.bounds;
     
     CGFloat cornerRadius = 16.0;
-    _buttonView.layer.cornerRadius = cornerRadius;
-    _blurView.frame = _buttonView.bounds;
+    _visualContainer.frame = _buttonView.bounds;
+    _visualContainer.layer.cornerRadius = cornerRadius;
+    _blurView.frame = _visualContainer.bounds;
     _blurView.layer.cornerRadius = cornerRadius;
     
-    _innerRing.frame = CGRectInset(_buttonView.bounds, 4, 4);
+    _innerRing.frame = CGRectInset(_visualContainer.bounds, 4, 4);
     _innerRing.layer.cornerRadius = 12.0;
     
     if (edge == HKFDockEdgeTop) {
@@ -254,15 +287,39 @@ static const CGFloat prefs_idleTimeout = 0.5;
 
 - (void)setup {
     UIWindowScene *targetScene = nil;
-    for (UIWindowScene *s in [UIApplication sharedApplication].connectedScenes) {
-        if ([s isKindOfClass:[UIWindowScene class]] && s.screen == [UIScreen mainScreen]) {
-            targetScene = s;
-            break;
+    if ([[UIApplication sharedApplication] respondsToSelector:@selector(statusBarWindow)]) {
+        UIWindow *sbWin = [(SpringBoard *)[UIApplication sharedApplication] statusBarWindow];
+        if (sbWin && [sbWin respondsToSelector:@selector(windowScene)] && sbWin.windowScene) {
+            targetScene = sbWin.windowScene;
+        }
+    }
+    if (!targetScene) {
+        for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
+            if ([scene isKindOfClass:[UIWindowScene class]]) {
+                UIWindowScene *ws = (UIWindowScene *)scene;
+                if (ws.screen == [UIScreen mainScreen]) {
+                    Class homeClass = objc_getClass("SBHomeScreenWindowScene");
+                    if (!homeClass || ![ws isKindOfClass:homeClass]) {
+                        targetScene = ws;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    if (!targetScene) {
+        for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
+            if ([scene isKindOfClass:[UIWindowScene class]]) {
+                UIWindowScene *ws = (UIWindowScene *)scene;
+                if (ws.screen == [UIScreen mainScreen]) {
+                    targetScene = ws;
+                    break;
+                }
+            }
         }
     }
     
     CGFloat W = [UIScreen mainScreen].bounds.size.width;
-    
     CGRect windowFrame = CGRectMake((W - 200.0) / 2.0, 0, 200, 32);
     
     if (targetScene) {
@@ -273,7 +330,7 @@ static const CGFloat prefs_idleTimeout = 0.5;
     }
     
     self.floatingWindow.backgroundColor = [UIColor clearColor];
-    self.floatingWindow.windowLevel = 9999999.0;
+    self.floatingWindow.windowLevel = 10000005.0;
     self.floatingWindow.userInteractionEnabled = YES;
     self.floatingWindow.clipsToBounds = NO; 
     
@@ -300,38 +357,46 @@ static const CGFloat prefs_idleTimeout = 0.5;
     }
 
     _buttonView = [[HKFButtonView alloc] initWithFrame:self.floatingWindow.bounds];
-    _buttonView.backgroundColor = [UIColor colorWithWhite:0.2 alpha:0.8];
-    _buttonView.layer.masksToBounds = NO;
-    _buttonView.layer.borderWidth = 1.0;
-    _buttonView.layer.borderColor = [UIColor colorWithWhite:1.0 alpha:0.1].CGColor;
-    _buttonView.layer.shadowColor = [UIColor whiteColor].CGColor;
-    _buttonView.layer.shadowOffset = CGSizeZero;
-    _buttonView.layer.shadowOpacity = 0.5;
-    _buttonView.layer.shadowRadius = 8.0;
+    _buttonView.backgroundColor = [UIColor clearColor];
+    _buttonView.userInteractionEnabled = YES;
+    _buttonView.alpha = 1.0;
+    
+    _visualContainer = [[UIView alloc] initWithFrame:_buttonView.bounds];
+    _visualContainer.backgroundColor = [UIColor colorWithWhite:0.2 alpha:0.8];
+    _visualContainer.layer.masksToBounds = NO;
+    _visualContainer.layer.borderWidth = 1.0;
+    _visualContainer.layer.borderColor = [UIColor colorWithWhite:1.0 alpha:0.1].CGColor;
+    _visualContainer.layer.shadowColor = [UIColor whiteColor].CGColor;
+    _visualContainer.layer.shadowOffset = CGSizeZero;
+    _visualContainer.layer.shadowOpacity = 0.5;
+    _visualContainer.layer.shadowRadius = 8.0;
+    _visualContainer.userInteractionEnabled = NO;
     
     UIBlurEffect *blur = [UIBlurEffect effectWithStyle:UIBlurEffectStyleDark];
     _blurView = [[UIVisualEffectView alloc] initWithEffect:blur];
     _blurView.clipsToBounds = YES;
     _blurView.userInteractionEnabled = NO;
-    [_buttonView addSubview:_blurView];
+    [_visualContainer addSubview:_blurView];
     
     _innerRing = [[UIView alloc] init];
     _innerRing.layer.borderWidth = 1.5;
     _innerRing.layer.borderColor = [UIColor colorWithWhite:1.0 alpha:0.4].CGColor;
     _innerRing.userInteractionEnabled = NO;
-    [_buttonView addSubview:_innerRing];
+    [_visualContainer addSubview:_innerRing];
     
     _centerDot = [[UIView alloc] init];
     _centerDot.backgroundColor = [UIColor colorWithWhite:1.0 alpha:0.7];
     _centerDot.userInteractionEnabled = NO;
-    [_buttonView addSubview:_centerDot];
+    [_visualContainer addSubview:_centerDot];
     
+    [_buttonView addSubview:_visualContainer];
     [rootVC.view addSubview:_buttonView];
     
     [self _updateShapeForEdge:HKFDockEdgeTop]; 
     self.floatingWindow.center = CGPointMake(W / 2.0, 16.0);
     
-    _buttonView.alpha = 0.0;
+    _visualContainer.alpha = 0.0;
+    _buttonView.alpha = 1.0;
     _isIdle = YES;
 
     UITapGestureRecognizer *tapGR = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(_handleDoubleTap:)];
@@ -361,7 +426,7 @@ static const CGFloat prefs_idleTimeout = 0.5;
     _isIdle = YES;
     
     [UIView animateWithDuration:0.4 delay:0 options:UIViewAnimationOptionCurveEaseOut | UIViewAnimationOptionAllowUserInteraction animations:^{
-        _buttonView.alpha = (_currentEdge == HKFDockEdgeTop) ? 0.0 : prefs_idleOpacity;
+        _visualContainer.alpha = (_currentEdge == HKFDockEdgeTop) ? 0.0 : prefs_idleOpacity;
         CGFloat W = [UIScreen mainScreen].bounds.size.width;
         CGPoint center = self.floatingWindow.center;
         
@@ -384,10 +449,10 @@ static const CGFloat prefs_idleTimeout = 0.5;
     
     if (_currentEdge != HKFDockEdgeTop) {
         [UIView animateWithDuration:0.2 delay:0 options:UIViewAnimationOptionAllowUserInteraction animations:^{
-            _buttonView.alpha = 1.0;
+            _visualContainer.alpha = 1.0;
         } completion:nil];
     } else {
-        _buttonView.alpha = 0.0;
+        _visualContainer.alpha = 0.0;
     }
 }
 
@@ -396,21 +461,21 @@ static const CGFloat prefs_idleTimeout = 0.5;
     _dialDismissTimer = nil;
     
     [_dialView.layer removeAllAnimations];
-    [_buttonView.layer removeAllAnimations];
+    [_visualContainer.layer removeAllAnimations];
     
     [UIView animateWithDuration:0.2 delay:0 options:UIViewAnimationOptionCurveEaseInOut | UIViewAnimationOptionAllowUserInteraction animations:^{
         _dialView.transform = CGAffineTransformMakeScale(0.1, 0.1);
         _dialView.alpha = 0.0;
         if (_currentEdge == HKFDockEdgeTop) {
-            _buttonView.alpha = 0.0;
+            _visualContainer.alpha = 0.0;
         } else {
-            _buttonView.alpha = 1.0;
+            _visualContainer.alpha = 1.0;
         }
     } completion:^(BOOL finished){
         _dialView.alpha = 0.0;
         _dialView.transform = CGAffineTransformMakeScale(0.1, 0.1);
         if (_currentEdge == HKFDockEdgeTop) {
-            _buttonView.alpha = 0.0;
+            _visualContainer.alpha = 0.0;
             _isIdle = YES;
         }
     }];
@@ -492,17 +557,17 @@ static const CGFloat prefs_idleTimeout = 0.5;
         }
         
         [_dialView.layer removeAllAnimations];
-        [_buttonView.layer removeAllAnimations];
+        [_visualContainer.layer removeAllAnimations];
         
         if (_currentEdge == HKFDockEdgeTop) {
-            _buttonView.alpha = 0.0;
+            _visualContainer.alpha = 0.0;
         }
         
         [UIView animateWithDuration:0.25 delay:0 usingSpringWithDamping:0.7 initialSpringVelocity:0 options:UIViewAnimationOptionCurveEaseOut | UIViewAnimationOptionAllowUserInteraction | UIViewAnimationOptionBeginFromCurrentState animations:^{
             _dialView.transform = CGAffineTransformIdentity;
             _dialView.alpha = 1.0;
             if (_currentEdge == HKFDockEdgeTop) {
-                _buttonView.alpha = 0.0;
+                _visualContainer.alpha = 0.0;
             }
         } completion:nil];
         
@@ -574,6 +639,7 @@ static const CGFloat prefs_idleTimeout = 0.5;
         [UIView animateWithDuration:0.2 delay:0 options:UIViewAnimationOptionAllowUserInteraction animations:^{
             self.floatingWindow.center = popCenter;
             self.floatingWindow.transform = CGAffineTransformMakeScale(1.1, 1.1);
+            _visualContainer.alpha = 1.0;
         } completion:nil];
         _dragStartCenter = popCenter;
         
@@ -632,9 +698,9 @@ static const CGFloat prefs_idleTimeout = 0.5;
             self.floatingWindow.center = finalCenter;
             self.floatingWindow.transform = CGAffineTransformIdentity;
             if (finalEdge == HKFDockEdgeTop) {
-                _buttonView.alpha = 0.0;
+                _visualContainer.alpha = 0.0;
             } else {
-                _buttonView.alpha = 1.0;
+                _visualContainer.alpha = 1.0;
             }
         } completion:^(BOOL finished){
             if (finalEdge == HKFDockEdgeTop) {
@@ -653,6 +719,19 @@ static const CGFloat prefs_idleTimeout = 0.5;
     %orig;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         [[HKFFloatingManager sharedInstance] setup];
+    });
+}
+
+- (void)frontDisplayDidChange:(id)newDisplay {
+    %orig;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UIWindow *win = [HKFFloatingManager sharedInstance].floatingWindow;
+        if (win && [[UIApplication sharedApplication] respondsToSelector:@selector(statusBarWindow)]) {
+            UIWindow *sbWin = [(SpringBoard *)[UIApplication sharedApplication] statusBarWindow];
+            if (sbWin && [sbWin respondsToSelector:@selector(windowScene)] && sbWin.windowScene && win.windowScene != sbWin.windowScene) {
+                win.windowScene = sbWin.windowScene;
+            }
+        }
     });
 }
 %end
