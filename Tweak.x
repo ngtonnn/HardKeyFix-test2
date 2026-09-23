@@ -151,6 +151,26 @@ static const CGFloat prefs_idleTimeout = 0.5;
 }
 @end
 
+@interface HKFFloatingWindow : UIWindow
+@end
+
+@implementation HKFFloatingWindow
+- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent *)event {
+    if ([super pointInside:point withEvent:event]) {
+        return YES;
+    }
+    for (UIView *subview in self.rootViewController.view.subviews) {
+        if (!subview.hidden && subview.alpha > 0.01) {
+            CGPoint p = [self convertPoint:point toView:subview];
+            if ([subview pointInside:p withEvent:event]) {
+                return YES;
+            }
+        }
+    }
+    return NO;
+}
+@end
+
 @interface HKFFloatingManager : NSObject
 @property (nonatomic, strong) UIWindow *floatingWindow;
 + (instancetype)sharedInstance;
@@ -162,6 +182,7 @@ static const CGFloat prefs_idleTimeout = 0.5;
 - (void)_resetIdleTimer;
 - (void)_idleTimerFired;
 - (void)_wakeUp;
+- (void)_dismissDialView;
 - (void)_handleDoubleTap:(UITapGestureRecognizer *)gr;
 - (void)_handleVolumePan:(UIPanGestureRecognizer *)gr;
 - (void)_handleLongPressMove:(UILongPressGestureRecognizer *)gr;
@@ -174,6 +195,7 @@ static const CGFloat prefs_idleTimeout = 0.5;
     UIView *_centerDot;
     
     NSTimer *_idleTimer;
+    NSTimer *_dialDismissTimer;
     BOOL _isIdle;
     HKFDockEdge _currentEdge;
     
@@ -244,10 +266,10 @@ static const CGFloat prefs_idleTimeout = 0.5;
     CGRect windowFrame = CGRectMake((W - 200.0) / 2.0, 0, 200, 32);
     
     if (targetScene) {
-        self.floatingWindow = [[UIWindow alloc] initWithWindowScene:targetScene];
+        self.floatingWindow = [[HKFFloatingWindow alloc] initWithWindowScene:targetScene];
         self.floatingWindow.frame = windowFrame;
     } else {
-        self.floatingWindow = [[UIWindow alloc] initWithFrame:windowFrame];
+        self.floatingWindow = [[HKFFloatingWindow alloc] initWithFrame:windowFrame];
     }
     
     self.floatingWindow.backgroundColor = [UIColor clearColor];
@@ -360,9 +382,42 @@ static const CGFloat prefs_idleTimeout = 0.5;
     if (!_isIdle) return;
     _isIdle = NO;
     
-    [UIView animateWithDuration:0.2 delay:0 options:UIViewAnimationOptionAllowUserInteraction animations:^{
-        _buttonView.alpha = 1.0;
-    } completion:nil];
+    if (_currentEdge != HKFDockEdgeTop) {
+        [UIView animateWithDuration:0.2 delay:0 options:UIViewAnimationOptionAllowUserInteraction animations:^{
+            _buttonView.alpha = 1.0;
+        } completion:nil];
+    } else {
+        _buttonView.alpha = 0.0;
+    }
+}
+
+- (void)_dismissDialView {
+    [_dialDismissTimer invalidate];
+    _dialDismissTimer = nil;
+    
+    [_dialView.layer removeAllAnimations];
+    [_buttonView.layer removeAllAnimations];
+    
+    [UIView animateWithDuration:0.2 delay:0 options:UIViewAnimationOptionCurveEaseInOut | UIViewAnimationOptionAllowUserInteraction animations:^{
+        _dialView.transform = CGAffineTransformMakeScale(0.1, 0.1);
+        _dialView.alpha = 0.0;
+        if (_currentEdge == HKFDockEdgeTop) {
+            _buttonView.alpha = 0.0;
+        } else {
+            _buttonView.alpha = 1.0;
+        }
+    } completion:^(BOOL finished){
+        _dialView.alpha = 0.0;
+        _dialView.transform = CGAffineTransformMakeScale(0.1, 0.1);
+        if (_currentEdge == HKFDockEdgeTop) {
+            _buttonView.alpha = 0.0;
+            _isIdle = YES;
+        }
+    }];
+    
+    if (_currentEdge != HKFDockEdgeTop) {
+        [self _resetIdleTimer];
+    }
 }
 
 - (void)_handleDoubleTap:(UITapGestureRecognizer *)gr {
@@ -390,17 +445,19 @@ static const CGFloat prefs_idleTimeout = 0.5;
 }
 
 - (void)_handleVolumePan:(UIPanGestureRecognizer *)gr {
-    [self _wakeUp];
-    CGPoint location = [gr locationInView:nil]; 
-    
     if (!_volumeSlider) return;
+    CGPoint location = [gr locationInView:nil]; 
 
     if (gr.state == UIGestureRecognizerStateBegan) {
+        [self _wakeUp];
+        [_dialDismissTimer invalidate];
+        _dialDismissTimer = nil;
+        
         _lastPanCoord = (_currentEdge == HKFDockEdgeTop) ? location.x : location.y;
         _currentVolume = _volumeSlider.value;
         _lastHapticStep = (int)(_currentVolume * 16.0);
         
-                CGRect dialFrame;
+        CGRect dialFrame;
         if (_currentEdge == HKFDockEdgeTop) {
             dialFrame = CGRectMake(0, 0, 260, 48);
         } else {
@@ -410,7 +467,10 @@ static const CGFloat prefs_idleTimeout = 0.5;
         if (!_dialView || _dialView.dockEdge != _currentEdge) {
             [_dialView removeFromSuperview];
             _dialView = [[HKFDialView alloc] initWithFrame:dialFrame edge:_currentEdge];
-            [self.floatingWindow.rootViewController.view insertSubview:_dialView belowSubview:_buttonView];
+            _dialView.userInteractionEnabled = NO;
+            [self.floatingWindow.rootViewController.view addSubview:_dialView];
+        } else {
+            [self.floatingWindow.rootViewController.view bringSubviewToFront:_dialView];
         }
         
         _dialView.transform = CGAffineTransformIdentity;
@@ -434,18 +494,28 @@ static const CGFloat prefs_idleTimeout = 0.5;
         [_dialView.layer removeAllAnimations];
         [_buttonView.layer removeAllAnimations];
         
-        [UIView animateWithDuration:0.3 delay:0 usingSpringWithDamping:0.7 initialSpringVelocity:0 options:UIViewAnimationOptionCurveEaseOut | UIViewAnimationOptionAllowUserInteraction | UIViewAnimationOptionBeginFromCurrentState animations:^{
+        if (_currentEdge == HKFDockEdgeTop) {
+            _buttonView.alpha = 0.0;
+        }
+        
+        [UIView animateWithDuration:0.25 delay:0 usingSpringWithDamping:0.7 initialSpringVelocity:0 options:UIViewAnimationOptionCurveEaseOut | UIViewAnimationOptionAllowUserInteraction | UIViewAnimationOptionBeginFromCurrentState animations:^{
             _dialView.transform = CGAffineTransformIdentity;
             _dialView.alpha = 1.0;
-            _buttonView.alpha = 0.0;
+            if (_currentEdge == HKFDockEdgeTop) {
+                _buttonView.alpha = 0.0;
+            }
         } completion:nil];
         
         [_heavyFeedback prepare];
         [_lightFeedback prepare];
         [_heavyFeedback impactOccurred];
         
+        _dialDismissTimer = [NSTimer scheduledTimerWithTimeInterval:1.5 target:self selector:@selector(_dismissDialView) userInfo:nil repeats:NO];
     } 
     else if (gr.state == UIGestureRecognizerStateChanged) {
+        [_dialDismissTimer invalidate];
+        _dialDismissTimer = [NSTimer scheduledTimerWithTimeInterval:1.5 target:self selector:@selector(_dismissDialView) userInfo:nil repeats:NO];
+        
         CGFloat currentCoord = (_currentEdge == HKFDockEdgeTop) ? location.x : location.y;
         CGFloat delta = currentCoord - _lastPanCoord; 
         _lastPanCoord = currentCoord;
@@ -461,7 +531,7 @@ static const CGFloat prefs_idleTimeout = 0.5;
         [_dialView setVolume:_currentVolume];
         
         [_volumeSlider setValue:_currentVolume animated:NO];
-        [_volumeSlider sendActionsForControlEvents:UIControlEventTouchUpInside];
+        [_volumeSlider sendActionsForControlEvents:UIControlEventValueChanged];
         
         int currentStep = (int)(_currentVolume * 16.0);
         if (currentStep != _lastHapticStep) {
@@ -471,23 +541,12 @@ static const CGFloat prefs_idleTimeout = 0.5;
         }
     }
     else {
-        [UIView animateWithDuration:0.3 delay:0 options:UIViewAnimationOptionAllowUserInteraction | UIViewAnimationOptionBeginFromCurrentState animations:^{
-            _dialView.transform = CGAffineTransformMakeScale(0.1, 0.1);
-            _dialView.alpha = 0.0;
-            _buttonView.alpha = (_currentEdge == HKFDockEdgeTop) ? 0.0 : 1.0;
-        } completion:^(BOOL finished){
-            if (_currentEdge == HKFDockEdgeTop) {
-                _isIdle = YES;
-            }
-        }];
-        if (_currentEdge != HKFDockEdgeTop) {
-            [self _resetIdleTimer];
-        }
+        [_volumeSlider sendActionsForControlEvents:UIControlEventTouchUpInside];
+        [self _dismissDialView];
     }
 }
 
 - (void)_handleLongPressMove:(UILongPressGestureRecognizer *)gr {
-    [self _wakeUp];
     if (prefs_lockPosition) {
         [self _resetIdleTimer];
         return;
@@ -496,6 +555,8 @@ static const CGFloat prefs_idleTimeout = 0.5;
     CGPoint location = [gr locationInView:nil];
     
     if (gr.state == UIGestureRecognizerStateBegan) {
+        [self _dismissDialView];
+        [self _wakeUp];
         _dragStartCenter = self.floatingWindow.center;
         _dragStartTouch = location;
         
