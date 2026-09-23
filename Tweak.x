@@ -241,7 +241,7 @@ static const CGFloat prefs_idleTimeout = 0.5;
     CGFloat W = [UIScreen mainScreen].bounds.size.width;
     CGFloat H = [UIScreen mainScreen].bounds.size.height;
     
-    CGRect windowFrame = CGRectMake(W - 32 - 2, H / 2.0 - 50, 32, 100);
+    CGRect windowFrame = CGRectMake((W - 200.0) / 2.0, 0, 200, 32);
     
     if (targetScene) {
         self.floatingWindow = [[UIWindow alloc] initWithWindowScene:targetScene];
@@ -306,9 +306,10 @@ static const CGFloat prefs_idleTimeout = 0.5;
     
     [rootVC.view addSubview:_buttonView];
     
-    [self _updateShapeForEdge:HKFDockEdgeRight]; 
+    [self _updateShapeForEdge:HKFDockEdgeTop]; 
+    self.floatingWindow.center = CGPointMake(W / 2.0, 16.0);
     
-    _buttonView.alpha = prefs_idleOpacity;
+    _buttonView.alpha = 0.0;
     _isIdle = YES;
 
     UITapGestureRecognizer *tapGR = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(_handleDoubleTap:)];
