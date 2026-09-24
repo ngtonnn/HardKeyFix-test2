@@ -1,3 +1,7 @@
+@interface SBLockScreenManager : NSObject
++ (id)sharedInstance;
+- (void)lockUIFromSource:(int)arg1 withOptions:(id)arg2;
+@end
 #import <UIKit/UIKit.h>
 #import <AVFoundation/AVFoundation.h>
 #import <MediaPlayer/MediaPlayer.h>
@@ -214,7 +218,6 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
 - (void)_dismissDialView;
 - (void)_handleDoubleTap:(UITapGestureRecognizer *)gr;
 - (void)_handleVolumePan:(UIPanGestureRecognizer *)gr;
-- (void)_handleLongPressMove:(UILongPressGestureRecognizer *)gr;
 @end
 
 @implementation HKFFloatingManager {
@@ -769,6 +772,7 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     });
 }
 %end
+
 
 
 
