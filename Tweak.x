@@ -31,7 +31,8 @@ typedef NS_ENUM(NSInteger, HKFDockEdge) {
 };
 
 static BOOL prefs_lockPosition = NO;
-static CGFloat prefs_idleOpacity = 0.3; 
+static CGFloat prefs_idleOpacity = 0.3;
+CGFloat prefs_edgePadding = 0.0; 
 static CGFloat prefs_idleTimeout = 0.5; 
 static CGFloat prefs_width = 32.0;
 static CGFloat prefs_length = 40.0;
@@ -377,14 +378,16 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     
     CGFloat W = [UIScreen mainScreen].bounds.size.width;
     CGFloat H = [UIScreen mainScreen].bounds.size.height;
-    NSUserDefaults *savePrefs = [[NSUserDefaults alloc] initWithSuiteName:@"com.yourname.hardkeyfix"];
-    NSInteger savedEdge = [savePrefs integerForKey:@"savedEdge"];
-    if (savedEdge == 0) savedEdge = HKFDockEdgeRight;
-    float savedY = [savePrefs floatForKey:@"savedY"];
-    if (savedY == 0) savedY = H / 2.0;
+    NSMutableDictionary *posDict = [NSMutableDictionary dictionaryWithContentsOfFile:@"/var/jb/var/mobile/Library/Preferences/com.yourname.hardkeyfix.position.plist"];
+    NSInteger savedEdge = HKFDockEdgeRight;
+    float savedY = H / 2.0;
+    if (posDict) {
+        if (posDict[@"savedEdge"]) savedEdge = [posDict[@"savedEdge"] integerValue];
+        if (posDict[@"savedY"]) savedY = [posDict[@"savedY"] floatValue];
+    }
     
     [self _updateShapeForEdge:(HKFDockEdge)savedEdge];
-    CGFloat padding = (prefs_width < 25) ? 12.0 : 0.0;
+    CGFloat padding = prefs_edgePadding;
     CGFloat edgeOffset = (prefs_width / 2.0) + padding;
     self.floatingWindow.center = CGPointMake(savedEdge == HKFDockEdgeLeft ? edgeOffset : W - edgeOffset, savedY);
     
@@ -426,11 +429,11 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
         if (_currentEdge == HKFDockEdgeTop) {
             center.y = 40.0;
         } else if (_currentEdge == HKFDockEdgeLeft) {
-            CGFloat padding = (prefs_width < 25) ? 12.0 : 0.0;
+            CGFloat padding = prefs_edgePadding;
             CGFloat edgeOffset = (prefs_width / 2.0) + padding;
             center.x = edgeOffset; 
         } else {
-            CGFloat padding = (prefs_width < 25) ? 12.0 : 0.0;
+            CGFloat padding = prefs_edgePadding;
             CGFloat edgeOffset = (prefs_width / 2.0) + padding;
             center.x = W - edgeOffset;
         }
@@ -628,11 +631,11 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
         if (_currentEdge == HKFDockEdgeTop) {
             popCenter.y = 40.0;
         } else if (popCenter.x < W / 2.0) {
-            CGFloat padding = (prefs_width < 25) ? 12.0 : 0.0;
+            CGFloat padding = prefs_edgePadding;
             CGFloat edgeOffset = (prefs_width / 2.0) + padding;
             popCenter.x = edgeOffset; 
         } else { 
-            CGFloat padding = (prefs_width < 25) ? 12.0 : 0.0;
+            CGFloat padding = prefs_edgePadding;
             CGFloat edgeOffset = (prefs_width / 2.0) + padding;
             popCenter.x = W - edgeOffset; 
         }
@@ -670,12 +673,12 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
         
         HKFDockEdge finalEdge;
         if (finalCenter.x < W / 2.0) {
-            CGFloat padding = (prefs_width < 25) ? 12.0 : 0.0;
+            CGFloat padding = prefs_edgePadding;
             CGFloat edgeOffset = (prefs_width / 2.0) + padding;
             finalEdge = HKFDockEdgeLeft;
             finalCenter.x = edgeOffset;
         } else {
-            CGFloat padding = (prefs_width < 25) ? 12.0 : 0.0;
+            CGFloat padding = prefs_edgePadding;
             CGFloat edgeOffset = (prefs_width / 2.0) + padding;
             finalEdge = HKFDockEdgeRight;
             finalCenter.x = W - edgeOffset;
@@ -696,10 +699,10 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
                 _visualContainer.alpha = 1.0;
             }
         } completion:^(BOOL finished){
-            NSUserDefaults *savePrefs = [[NSUserDefaults alloc] initWithSuiteName:@"com.yourname.hardkeyfix"];
-            [savePrefs setInteger:finalEdge forKey:@"savedEdge"];
-            [savePrefs setFloat:finalCenter.y forKey:@"savedY"];
-            [savePrefs synchronize];
+            NSMutableDictionary *posDict = [NSMutableDictionary dictionaryWithContentsOfFile:@"/var/jb/var/mobile/Library/Preferences/com.yourname.hardkeyfix.position.plist"] ?: [NSMutableDictionary dictionary];
+            posDict[@"savedEdge"] = @(finalEdge);
+            posDict[@"savedY"] = @(finalCenter.y);
+            [posDict writeToFile:@"/var/jb/var/mobile/Library/Preferences/com.yourname.hardkeyfix.position.plist" atomically:YES];
             if (finalEdge == HKFDockEdgeTop) {
                 _isIdle = YES;
             }
@@ -733,6 +736,8 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     });
 }
 %end
+
+
 
 
 
