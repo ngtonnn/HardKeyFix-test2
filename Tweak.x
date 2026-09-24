@@ -1,4 +1,4 @@
-﻿#import <UIKit/UIKit.h>
+#import <UIKit/UIKit.h>
 #import <AVFoundation/AVFoundation.h>
 #import <MediaPlayer/MediaPlayer.h>
 #import <objc/runtime.h>
@@ -706,7 +706,6 @@ static void loadPrefs() {
     });
 }
 %end
-
 
 
 
