@@ -360,6 +360,7 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     [_buttonView addSubview:_visualContainer];
     [rootVC.view addSubview:_buttonView];
     
+    CGFloat W = [UIScreen mainScreen].bounds.size.width;
     CGFloat H = [UIScreen mainScreen].bounds.size.height;
     [self _updateShapeForEdge:HKFDockEdgeRight]; 
     self.floatingWindow.center = CGPointMake(W - 16.0, H / 2.0);
@@ -620,7 +621,8 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
         CGFloat dy = location.y - _dragStartTouch.y;
         self.floatingWindow.center = CGPointMake(_dragStartCenter.x + dx, _dragStartCenter.y + dy);
         
-        CGFloat H = [UIScreen mainScreen].bounds.size.height;
+        CGFloat W = [UIScreen mainScreen].bounds.size.width;
+    CGFloat H = [UIScreen mainScreen].bounds.size.height;
         HKFDockEdge edgePreview = (self.floatingWindow.center.x < [UIScreen mainScreen].bounds.size.width / 2.0) ? HKFDockEdgeLeft : HKFDockEdgeRight;
         
         if (edgePreview != _currentEdge) {
@@ -632,7 +634,8 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     }
     else {
         CGFloat W = [UIScreen mainScreen].bounds.size.width;
-        CGFloat H = [UIScreen mainScreen].bounds.size.height;
+        CGFloat W = [UIScreen mainScreen].bounds.size.width;
+    CGFloat H = [UIScreen mainScreen].bounds.size.height;
         CGPoint finalCenter = self.floatingWindow.center;
         
         HKFDockEdge finalEdge;
@@ -692,6 +695,7 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     });
 }
 %end
+
 
 
 
