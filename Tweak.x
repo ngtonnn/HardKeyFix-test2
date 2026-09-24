@@ -646,6 +646,7 @@ static void loadPrefs() {
         }
     }
     else {
+        CGFloat W = [UIScreen mainScreen].bounds.size.width;
         CGFloat H = [UIScreen mainScreen].bounds.size.height;
         CGPoint finalCenter = self.floatingWindow.center;
         
@@ -705,6 +706,7 @@ static void loadPrefs() {
     });
 }
 %end
+
 
 
 
