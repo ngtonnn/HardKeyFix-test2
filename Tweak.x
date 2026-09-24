@@ -661,10 +661,9 @@ static void loadPrefs() {
         }
         
         CGFloat topSafeArea = 100.0;
-            CGFloat bottomSafeArea = H - 50.0;
-            if (finalCenter.y < topSafeArea) finalCenter.y = topSafeArea;
-            if (finalCenter.y > bottomSafeArea) finalCenter.y = bottomSafeArea;
-        }
+        CGFloat bottomSafeArea = H - 50.0;
+        if (finalCenter.y < topSafeArea) finalCenter.y = topSafeArea;
+        if (finalCenter.y > bottomSafeArea) finalCenter.y = bottomSafeArea;
         
         [UIView animateWithDuration:0.3 delay:0 usingSpringWithDamping:0.8 initialSpringVelocity:0 options:UIViewAnimationOptionCurveEaseOut | UIViewAnimationOptionAllowUserInteraction animations:^{
             [self _updateShapeForEdge:finalEdge];
@@ -708,6 +707,7 @@ static void loadPrefs() {
     });
 }
 %end
+
 
 
 
