@@ -31,11 +31,14 @@ typedef NS_ENUM(NSInteger, HKFDockEdge) {
 };
 
 static BOOL prefs_lockPosition = NO;
-static CGFloat prefs_idleOpacity = 0.0; 
+static CGFloat prefs_idleOpacity = 0.3; 
 static CGFloat prefs_idleTimeout = 0.5; 
 static CGFloat prefs_width = 32.0;
 static CGFloat prefs_length = 40.0;
 
+static void reloadPrefsNotification(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
+    loadPrefs();
+}
 static void loadPrefs() {
     NSDictionary *prefs = [NSDictionary dictionaryWithContentsOfFile:@"/var/mobile/Library/Preferences/com.yourname.hardkeyfix.plist"];
     if (prefs) {
@@ -688,6 +691,7 @@ static void loadPrefs() {
 %hook SpringBoard
 - (void)applicationDidFinishLaunching:(id)application {
     %orig;
+    CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, (CFNotificationCallback)reloadPrefsNotification, CFSTR("com.yourname.hardkeyfix/ReloadPrefs"), NULL, CFNotificationSuspensionBehaviorCoalesce);
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         [[HKFFloatingManager sharedInstance] setup];
     });
@@ -706,6 +710,9 @@ static void loadPrefs() {
     });
 }
 %end
+
+
+
 
 
 
