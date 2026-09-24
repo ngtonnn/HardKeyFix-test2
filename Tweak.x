@@ -414,9 +414,7 @@ static void loadPrefs() {
         CGFloat W = [UIScreen mainScreen].bounds.size.width;
         CGPoint center = self.floatingWindow.center;
         
-        if (_currentEdge == HKFDockEdgeTop) {
-            center.y = 40.0;
-        } else if (_currentEdge == HKFDockEdgeLeft) {
+        if (_currentEdge == HKFDockEdgeLeft) {
             center.x = 16.0; 
         } else {
             center.x = W - 16.0;
@@ -450,83 +448,7 @@ static void loadPrefs() {
     [UIView animateWithDuration:0.2 delay:0 options:UIViewAnimationOptionCurveEaseInOut | UIViewAnimationOptionAllowUserInteraction animations:^{
         _dialView.transform = CGAffineTransformMakeScale(0.1, 0.1);
         _dialView.alpha = 0.0;
-        if (_currentEdge == HKFDockEdgeTop) {
-            _visualContainer.alpha = 0.0;
-        } else {
-            _visualContainer.alpha = 1.0;
-        }
-    } completion:^(BOOL finished){
-        _dialView.alpha = 0.0;
-        _dialView.transform = CGAffineTransformMakeScale(0.1, 0.1);
-        if (_currentEdge == HKFDockEdgeTop) {
-            _visualContainer.alpha = 0.0;
-            _isIdle = YES;
-        }
-    }];
-    
-    if (_currentEdge != HKFDockEdgeTop) {
-        [self _resetIdleTimer];
-    }
-}
-
-- (void)_handleDoubleTap:(UITapGestureRecognizer *)gr {
-    (void)gr;
-    [self _resetIdleTimer];
-    self.floatingWindow.hidden = YES;
-    
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        SpringBoard *sb = (SpringBoard *)[UIApplication sharedApplication];
-        if ([sb respondsToSelector:@selector(screenshotManager)]) {
-            id manager = [sb screenshotManager];
-            if (manager && [manager respondsToSelector:@selector(saveScreenshotsWithCompletion:)]) {
-                [manager saveScreenshotsWithCompletion:nil];
-            }
-        } else {
-            Class shotterClass = objc_getClass("SBScreenShotter");
-            if (shotterClass && [shotterClass respondsToSelector:@selector(sharedInstance)]) {
-                [[shotterClass sharedInstance] saveScreenshot:YES];
-            }
-        }
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.4 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            self.floatingWindow.hidden = NO;
-        });
-    });
-}
-
-- (void)_handleVolumePan:(UIPanGestureRecognizer *)gr {
-    if (!_volumeSlider) return;
-    CGPoint location = [gr locationInView:nil]; 
-
-    if (gr.state == UIGestureRecognizerStateBegan) {
-        [self _wakeUp];
-        [_dialDismissTimer invalidate];
-        _dialDismissTimer = nil;
-        
-        _lastPanCoord = (_currentEdge == HKFDockEdgeTop) ? location.x : location.y;
-        _currentVolume = _volumeSlider.value;
-        _lastHapticStep = (int)(_currentVolume * 16.0);
-        
-        CGRect dialFrame;
-        if (_currentEdge == HKFDockEdgeTop) {
-            dialFrame = CGRectMake(0, 0, 260, 48);
-        } else {
-            dialFrame = CGRectMake(0, 0, 48, 260);
-        }
-        
-        if (!_dialView || _dialView.dockEdge != _currentEdge) {
-            [_dialView removeFromSuperview];
-            _dialView = [[HKFDialView alloc] initWithFrame:dialFrame edge:_currentEdge];
-            _dialView.userInteractionEnabled = NO;
-            [self.floatingWindow.rootViewController.view addSubview:_dialView];
-        } else {
-            [self.floatingWindow.rootViewController.view bringSubviewToFront:_dialView];
-        }
-        
-        _dialView.transform = CGAffineTransformIdentity;
-        if (_currentEdge == HKFDockEdgeTop) {
-            _dialView.layer.anchorPoint = CGPointMake(0.5, 0.0);
-            _dialView.frame = CGRectMake((_buttonView.bounds.size.width - 260) / 2.0, 0, 260, 48);
-        } else if (_currentEdge == HKFDockEdgeLeft) {
+        if (_currentEdge == HKFDockEdgeLeft) {
             _dialView.layer.anchorPoint = CGPointMake(0.0, 0.5);
             _dialView.frame = CGRectMake(0, (_buttonView.bounds.size.height - 260) / 2.0, 48, 260);
         } else {
@@ -543,16 +465,12 @@ static void loadPrefs() {
         [_dialView.layer removeAllAnimations];
         [_visualContainer.layer removeAllAnimations];
         
-        if (_currentEdge == HKFDockEdgeTop) {
-            _visualContainer.alpha = 0.0;
-        }
+
         
         [UIView animateWithDuration:0.25 delay:0 usingSpringWithDamping:0.7 initialSpringVelocity:0 options:UIViewAnimationOptionCurveEaseOut | UIViewAnimationOptionAllowUserInteraction | UIViewAnimationOptionBeginFromCurrentState animations:^{
             _dialView.transform = CGAffineTransformIdentity;
             _dialView.alpha = 1.0;
-            if (_currentEdge == HKFDockEdgeTop) {
-                _visualContainer.alpha = 0.0;
-            }
+    
         } completion:nil];
         
         [_heavyFeedback prepare];
@@ -565,11 +483,11 @@ static void loadPrefs() {
         [_dialDismissTimer invalidate];
         _dialDismissTimer = [NSTimer scheduledTimerWithTimeInterval:1.5 target:self selector:@selector(_dismissDialView) userInfo:nil repeats:NO];
         
-        CGFloat currentCoord = (_currentEdge == HKFDockEdgeTop) ? location.x : location.y;
+        CGFloat currentCoord = location.y;
         CGFloat delta = currentCoord - _lastPanCoord; 
         _lastPanCoord = currentCoord;
         
-        CGFloat vel = (_currentEdge == HKFDockEdgeTop) ? [gr velocityInView:nil].x : [gr velocityInView:nil].y;
+        CGFloat vel = [gr velocityInView:nil].y;
         CGFloat speedMultiplier = 1.0 + MIN(fabs(vel) / 500.0, 3.0);
         
         float volumeChange = (-delta / 150.0) * speedMultiplier;
@@ -668,19 +586,13 @@ static void loadPrefs() {
             [self _updateShapeForEdge:finalEdge];
             self.floatingWindow.center = finalCenter;
             self.floatingWindow.transform = CGAffineTransformIdentity;
-            if (finalEdge == HKFDockEdgeTop) {
-                _visualContainer.alpha = 0.0;
-            } else {
-                _visualContainer.alpha = 1.0;
-            }
+            _visualContainer.alpha = 1.0;
         } completion:^(BOOL finished){
             if (finalEdge == HKFDockEdgeTop) {
                 _isIdle = YES;
             }
         }];
-        if (finalEdge != HKFDockEdgeTop) {
-            [self _resetIdleTimer];
-        }
+        [self _resetIdleTimer];
     }
 }
 @end
@@ -706,6 +618,9 @@ static void loadPrefs() {
     });
 }
 %end
+
+
+
 
 
 
