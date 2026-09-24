@@ -8,7 +8,7 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
-			<string>Ð? m? khi r?nh tay (0 = Tàng hình)</string>
+			<string>Idle Opacity (0 = Invisible)</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -35,7 +35,7 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
-			<string>Chi?u dài (M?c d?nh: 100)</string>
+			<string>Length (Default: 100)</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -62,7 +62,7 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
-			<string>Chi?u r?ng (M?c d?nh: 32)</string>
+			<string>Width (Default: 32)</string>
 		</dict>
 		<dict>
 			<key>cell</key>
