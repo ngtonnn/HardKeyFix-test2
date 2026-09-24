@@ -84,33 +84,8 @@
 			<key>PostNotification</key>
 			<string>com.yourname.hardkeyfix/ReloadPrefs</string>
 		</dict>
-			<dict>
-			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
-			<string>Edge Padding</string>
-		</dict>
+
 		<dict>
-			<key>cell</key>
-			<string>PSSliderCell</string>
-			<key>default</key>
-			<integer>0</integer>
-			<key>defaults</key>
-			<string>com.yourname.hardkeyfix</string>
-			<key>key</key>
-			<string>edgePadding</string>
-			<key>min</key>
-			<integer>0</integer>
-			<key>max</key>
-			<integer>30</integer>
-			<key>showValue</key>
-			<true/>
-			<key>isSegmented</key>
-			<false/>
-			<key>PostNotification</key>
-			<string>com.yourname.hardkeyfix/ReloadPrefs</string>
-		</dict>
-			<dict>
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
