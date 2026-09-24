@@ -31,7 +31,7 @@ typedef NS_ENUM(NSInteger, HKFDockEdge) {
 };
 
 static const BOOL prefs_lockPosition = NO;
-static const CGFloat prefs_idleOpacity = 0.3; 
+static const CGFloat prefs_idleOpacity = 0.0; 
 static const CGFloat prefs_idleTimeout = 0.5; 
 
 @interface HKFDialView : UIView
@@ -239,7 +239,7 @@ static const CGFloat prefs_idleTimeout = 0.5;
     
     CGSize newSize;
     if (edge == HKFDockEdgeTop) {
-        newSize = CGSizeMake(200, 32);
+        newSize = CGSizeMake(80, 32);
     } else {
         newSize = CGSizeMake(32, 100);
     }
