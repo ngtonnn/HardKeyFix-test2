@@ -634,7 +634,6 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     }
     else {
         CGFloat W = [UIScreen mainScreen].bounds.size.width;
-        CGFloat W = [UIScreen mainScreen].bounds.size.width;
     CGFloat H = [UIScreen mainScreen].bounds.size.height;
         CGPoint finalCenter = self.floatingWindow.center;
         
@@ -695,6 +694,7 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     });
 }
 %end
+
 
 
 
