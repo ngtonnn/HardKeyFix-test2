@@ -18,6 +18,7 @@
 @interface SpringBoard : UIApplication
 - (id)screenshotManager;
 - (UIWindow *)statusBarWindow;
+- (void)_simulateLockButtonPress;
 @end
 
 @interface SBScreenshotManager : NSObject
@@ -790,6 +791,7 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     });
 }
 %end
+
 
 
 
