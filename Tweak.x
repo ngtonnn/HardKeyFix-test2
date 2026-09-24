@@ -388,7 +388,7 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     
     CGFloat W = [UIScreen mainScreen].bounds.size.width;
     CGFloat H = [UIScreen mainScreen].bounds.size.height;
-    NSMutableDictionary *posDict = [NSMutableDictionary dictionaryWithContentsOfFile:@"/var/jb/var/mobile/Library/Preferences/com.yourname.hardkeyfix.position.plist"];
+    NSMutableDictionary *posDict = [NSMutableDictionary dictionaryWithContentsOfFile:@"/var/mobile/Library/SpringBoard/HardKeyFixPosition.plist"];
     NSInteger savedEdge = HKFDockEdgeRight;
     float savedY = H / 2.0;
     if (posDict) {
@@ -506,7 +506,7 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     NSMutableDictionary *stateDict = [NSMutableDictionary dictionary];
     [stateDict setObject:@(_currentEdge) forKey:@"savedEdge"];
     [stateDict setObject:@(self.floatingWindow.center.y) forKey:@"savedY"];
-    [stateDict writeToFile:@"/var/jb/var/mobile/Library/Preferences/com.yourname.hardkeyfix.position.plist" atomically:YES];
+    [stateDict writeToFile:@"/var/mobile/Library/SpringBoard/HardKeyFixPosition.plist" atomically:YES];
 }
 
 - (void)_handleTripleTap:(UITapGestureRecognizer *)gr {
@@ -787,6 +787,7 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     });
 }
 %end
+
 
 
 
