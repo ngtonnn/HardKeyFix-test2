@@ -11,3 +11,6 @@ HardKeyFix_CFLAGS = -fobjc-arc
 HardKeyFix_FRAMEWORKS = UIKit AVFoundation MediaPlayer
 
 include $(THEOS_MAKE_PATH)/tweak.mk
+
+SUBPROJECTS += hardkeyfixprefs
+
