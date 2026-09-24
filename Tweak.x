@@ -30,9 +30,20 @@ typedef NS_ENUM(NSInteger, HKFDockEdge) {
     HKFDockEdgeTop
 };
 
-static const BOOL prefs_lockPosition = NO;
-static const CGFloat prefs_idleOpacity = 0.0; 
-static const CGFloat prefs_idleTimeout = 0.5; 
+static BOOL prefs_lockPosition = NO;
+static CGFloat prefs_idleOpacity = 0.0; 
+static CGFloat prefs_idleTimeout = 0.5; 
+static CGFloat prefs_width = 32.0;
+static CGFloat prefs_length = 40.0;
+
+static void loadPrefs() {
+    NSDictionary *prefs = [NSDictionary dictionaryWithContentsOfFile:@"/var/mobile/Library/Preferences/com.yourname.hardkeyfix.plist"];
+    if (prefs) {
+        if (prefs[@"idleOpacity"] != nil) prefs_idleOpacity = [prefs[@"idleOpacity"] doubleValue];
+        if (prefs[@"width"] != nil) prefs_width = [prefs[@"width"] doubleValue];
+        if (prefs[@"length"] != nil) prefs_length = [prefs[@"length"] doubleValue];
+    }
+}
 
 @interface HKFDialView : UIView
 @property (nonatomic, strong) UIView *rulerView;
@@ -237,12 +248,7 @@ static const CGFloat prefs_idleTimeout = 0.5;
 - (void)_updateShapeForEdge:(HKFDockEdge)edge {
     _currentEdge = edge;
     
-    CGSize newSize;
-    if (edge == HKFDockEdgeTop) {
-        newSize = CGSizeMake(80, 32);
-    } else {
-        newSize = CGSizeMake(32, 100);
-    }
+    CGSize newSize = CGSizeMake(prefs_width, prefs_length);
     
     self.floatingWindow.bounds = CGRectMake(0, 0, newSize.width, newSize.height);
     _buttonView.frame = self.floatingWindow.bounds;
@@ -256,15 +262,13 @@ static const CGFloat prefs_idleTimeout = 0.5;
     _innerRing.frame = CGRectInset(_visualContainer.bounds, 4, 4);
     _innerRing.layer.cornerRadius = 12.0;
     
-    if (edge == HKFDockEdgeTop) {
-        _centerDot.frame = CGRectMake(newSize.width/2.0 - 24, newSize.height/2.0 - 2, 48, 4);
-    } else {
-        _centerDot.frame = CGRectMake(newSize.width/2.0 - 2, newSize.height/2.0 - 12, 4, 24);
-    }
+    CGFloat dotLength = prefs_length * 0.4;
+    _centerDot.frame = CGRectMake(newSize.width/2.0 - 2, newSize.height/2.0 - (dotLength/2.0), 4, dotLength);
     _centerDot.layer.cornerRadius = 2.0;
 }
 
 - (void)setup {
+    loadPrefs();
     UIWindowScene *targetScene = nil;
     if ([[UIApplication sharedApplication] respondsToSelector:@selector(statusBarWindow)]) {
         UIWindow *sbWin = [(SpringBoard *)[UIApplication sharedApplication] statusBarWindow];
@@ -371,8 +375,8 @@ static const CGFloat prefs_idleTimeout = 0.5;
     [_buttonView addSubview:_visualContainer];
     [rootVC.view addSubview:_buttonView];
     
-    [self _updateShapeForEdge:HKFDockEdgeTop]; 
-    self.floatingWindow.center = CGPointMake(W / 2.0, 40.0);
+    [self _updateShapeForEdge:HKFDockEdgeRight]; 
+    self.floatingWindow.center = CGPointMake(W - 16.0, H / 2.0);
     
     _visualContainer.alpha = 0.0;
     _buttonView.alpha = 1.0;
@@ -405,7 +409,7 @@ static const CGFloat prefs_idleTimeout = 0.5;
     _isIdle = YES;
     
     [UIView animateWithDuration:0.4 delay:0 options:UIViewAnimationOptionCurveEaseOut | UIViewAnimationOptionAllowUserInteraction animations:^{
-        _visualContainer.alpha = (_currentEdge == HKFDockEdgeTop) ? 0.0 : prefs_idleOpacity;
+        _visualContainer.alpha = prefs_idleOpacity;
         CGFloat W = [UIScreen mainScreen].bounds.size.width;
         CGPoint center = self.floatingWindow.center;
         
@@ -631,12 +635,7 @@ static const CGFloat prefs_idleTimeout = 0.5;
         self.floatingWindow.center = CGPointMake(_dragStartCenter.x + dx, _dragStartCenter.y + dy);
         
         CGFloat H = [UIScreen mainScreen].bounds.size.height;
-        HKFDockEdge edgePreview = HKFDockEdgeRight;
-        if (self.floatingWindow.center.y < H * 0.12) {
-            edgePreview = HKFDockEdgeTop;
-        } else {
-            edgePreview = (self.floatingWindow.center.x < [UIScreen mainScreen].bounds.size.width / 2.0) ? HKFDockEdgeLeft : HKFDockEdgeRight;
-        }
+        HKFDockEdge edgePreview = (self.floatingWindow.center.x < [UIScreen mainScreen].bounds.size.width / 2.0) ? HKFDockEdgeLeft : HKFDockEdgeRight;
         
         if (edgePreview != _currentEdge) {
             [UIView animateWithDuration:0.2 delay:0 options:UIViewAnimationOptionAllowUserInteraction animations:^{
@@ -651,12 +650,12 @@ static const CGFloat prefs_idleTimeout = 0.5;
         CGPoint finalCenter = self.floatingWindow.center;
         
         HKFDockEdge finalEdge;
-        if (finalCenter.y < H * 0.12) {
-            finalEdge = HKFDockEdgeTop;
-            finalCenter.y = 40.0;
-            CGFloat minX = 110.0;
-            if (finalCenter.x < minX) finalCenter.x = minX;
-            if (finalCenter.x > W - minX) finalCenter.x = W - minX;
+        if (finalCenter.x < W / 2.0) {
+            finalEdge = HKFDockEdgeLeft;
+            finalCenter.x = 16.0;
+        } else {
+            finalEdge = HKFDockEdgeRight;
+            finalCenter.x = W - 16.0;
         } else {
             if (finalCenter.x < W / 2.0) {
                 finalEdge = HKFDockEdgeLeft;
@@ -714,6 +713,14 @@ static const CGFloat prefs_idleTimeout = 0.5;
     });
 }
 %end
+
+
+
+
+
+
+
+
 
 
 
