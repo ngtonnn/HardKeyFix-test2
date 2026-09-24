@@ -469,10 +469,6 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
             _visualContainer.alpha = 1.0;
         }
     } completion:^(BOOL finished){
-            NSUserDefaults *savePrefs = [[NSUserDefaults alloc] initWithSuiteName:@"com.yourname.hardkeyfix"];
-            [savePrefs setInteger:finalEdge forKey:@"savedEdge"];
-            [savePrefs setFloat:finalCenter.y forKey:@"savedY"];
-            [savePrefs synchronize];
         _dialView.alpha = 0.0;
         _dialView.transform = CGAffineTransformMakeScale(0.1, 0.1);
         if (_currentEdge == HKFDockEdgeTop) {
@@ -737,6 +733,8 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     });
 }
 %end
+
+
 
 
 
