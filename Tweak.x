@@ -306,7 +306,14 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
         return;
     }
     
-    self.floatingWindow.windowScene = targetScene;
+    if (targetScene) {
+        self.floatingWindow = [[HKFFloatingWindow alloc] initWithWindowScene:targetScene];
+    } else {
+        self.floatingWindow = [[HKFFloatingWindow alloc] initWithFrame:[UIScreen mainScreen].bounds];
+    }
+    
+    self.floatingWindow.windowLevel = 10000005.0;
+    self.floatingWindow.backgroundColor = [UIColor clearColor];
     self.floatingWindow.userInteractionEnabled = YES;
     self.floatingWindow.hidden = NO;
     self.floatingWindow.clipsToBounds = NO;
@@ -702,6 +709,7 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     });
 }
 %end
+
 
 
 
