@@ -37,11 +37,11 @@ static CGFloat prefs_width = 32.0;
 static CGFloat prefs_length = 40.0;
 
 static void loadPrefs() {
-    NSDictionary *prefs = [NSDictionary dictionaryWithContentsOfFile:@"/var/mobile/Library/Preferences/com.yourname.hardkeyfix.plist"];
+    NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:@"com.yourname.hardkeyfix"];
     if (prefs) {
-        if (prefs[@"idleOpacity"] != nil) prefs_idleOpacity = [prefs[@"idleOpacity"] doubleValue];
-        if (prefs[@"width"] != nil) prefs_width = [prefs[@"width"] doubleValue];
-        if (prefs[@"length"] != nil) prefs_length = [prefs[@"length"] doubleValue];
+        if ([prefs objectForKey:@"idleOpacity"]) prefs_idleOpacity = [prefs doubleForKey:@"idleOpacity"];
+        if ([prefs objectForKey:@"width"]) prefs_width = [prefs doubleForKey:@"width"];
+        if ([prefs objectForKey:@"length"]) prefs_length = [prefs doubleForKey:@"length"];
     }
 }
 static void reloadPrefsNotification(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
@@ -382,7 +382,7 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     [self _updateShapeForEdge:HKFDockEdgeRight]; 
     self.floatingWindow.center = CGPointMake(W - 16.0, H / 2.0);
     
-    _visualContainer.alpha = 0.0;
+    _visualContainer.alpha = prefs_idleOpacity;
     _buttonView.alpha = 1.0;
     _isIdle = YES;
 
@@ -439,7 +439,7 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
             _visualContainer.alpha = 1.0;
         } completion:nil];
     } else {
-        _visualContainer.alpha = 0.0;
+        _visualContainer.alpha = prefs_idleOpacity;
     }
 }
 
@@ -454,7 +454,7 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
         _dialView.transform = CGAffineTransformMakeScale(0.1, 0.1);
         _dialView.alpha = 0.0;
         if (_currentEdge == HKFDockEdgeTop) {
-            _visualContainer.alpha = 0.0;
+            _visualContainer.alpha = prefs_idleOpacity;
         } else {
             _visualContainer.alpha = 1.0;
         }
@@ -462,7 +462,7 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
         _dialView.alpha = 0.0;
         _dialView.transform = CGAffineTransformMakeScale(0.1, 0.1);
         if (_currentEdge == HKFDockEdgeTop) {
-            _visualContainer.alpha = 0.0;
+            _visualContainer.alpha = prefs_idleOpacity;
             _isIdle = YES;
         }
     }];
@@ -547,14 +547,14 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
         [_visualContainer.layer removeAllAnimations];
         
         if (_currentEdge == HKFDockEdgeTop) {
-            _visualContainer.alpha = 0.0;
+            _visualContainer.alpha = prefs_idleOpacity;
         }
         
         [UIView animateWithDuration:0.25 delay:0 usingSpringWithDamping:0.7 initialSpringVelocity:0 options:UIViewAnimationOptionCurveEaseOut | UIViewAnimationOptionAllowUserInteraction | UIViewAnimationOptionBeginFromCurrentState animations:^{
             _dialView.transform = CGAffineTransformIdentity;
             _dialView.alpha = 1.0;
             if (_currentEdge == HKFDockEdgeTop) {
-                _visualContainer.alpha = 0.0;
+                _visualContainer.alpha = prefs_idleOpacity;
             }
         } completion:nil];
         
@@ -672,7 +672,7 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
             self.floatingWindow.center = finalCenter;
             self.floatingWindow.transform = CGAffineTransformIdentity;
             if (finalEdge == HKFDockEdgeTop) {
-                _visualContainer.alpha = 0.0;
+                _visualContainer.alpha = prefs_idleOpacity;
             } else {
                 _visualContainer.alpha = 1.0;
             }
@@ -710,6 +710,9 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     });
 }
 %end
+
+
+
 
 
 
