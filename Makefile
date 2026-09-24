@@ -14,3 +14,5 @@ include $(THEOS_MAKE_PATH)/tweak.mk
 
 SUBPROJECTS += hardkeyfixprefs
 
+include $(THEOS_MAKE_PATH)/aggregate.mk
+
