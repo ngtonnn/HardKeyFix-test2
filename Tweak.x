@@ -203,6 +203,10 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
 @end
 
 @interface HKFFloatingManager ()
+- (void)_savePosition;
+- (void)_handlePositionPan:(UIPanGestureRecognizer *)gr;
+- (void)_handleHoldToLock:(UILongPressGestureRecognizer *)gr;
+- (void)_handleTripleTap:(UITapGestureRecognizer *)gr;
 - (void)_updateShapeForEdge:(HKFDockEdge)edge;
 - (void)_resetIdleTimer;
 - (void)_idleTimerFired;
@@ -223,6 +227,7 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     NSTimer *_idleTimer;
     NSTimer *_dialDismissTimer;
     BOOL _isIdle;
+    BOOL _isPositionUnlocked;
     HKFDockEdge _currentEdge;
     
     float _currentVolume;
@@ -485,6 +490,41 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     }
 }
 
+
+- (void)_savePosition {
+    NSMutableDictionary *stateDict = [NSMutableDictionary dictionary];
+    [stateDict setObject:@(_currentEdge) forKey:@"savedEdge"];
+    [stateDict setObject:@(self.floatingWindow.center.y) forKey:@"savedY"];
+    [stateDict writeToFile:@"/var/jb/var/mobile/Library/Preferences/com.yourname.hardkeyfix.position.plist" atomically:YES];
+}
+
+- (void)_handleTripleTap:(UITapGestureRecognizer *)gr {
+    _isPositionUnlocked = !_isPositionUnlocked;
+    [_mediumFeedback impactOccurred];
+    
+    if (_isPositionUnlocked) {
+        _visualContainer.backgroundColor = [UIColor colorWithWhite:1.0 alpha:0.2];
+    } else {
+        _visualContainer.backgroundColor = [UIColor clearColor];
+        [self _savePosition];
+    }
+}
+
+- (void)_handleHoldToLock:(UILongPressGestureRecognizer *)gr {
+    if (gr.state == UIGestureRecognizerStateBegan) {
+        [_heavyFeedback impactOccurred];
+        
+        Class lockManagerClass = objc_getClass("SBLockScreenManager");
+        if (lockManagerClass && [lockManagerClass respondsToSelector:@selector(sharedInstance)]) {
+            id manager = [lockManagerClass sharedInstance];
+            if ([manager respondsToSelector:@selector(lockUIFromSource:withOptions:)]) {
+                [manager lockUIFromSource:1 withOptions:nil];
+            }
+        }
+    }
+}
+
+
 - (void)_handleDoubleTap:(UITapGestureRecognizer *)gr {
     (void)gr;
     [self _resetIdleTimer];
@@ -611,11 +651,7 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     }
 }
 
-- (void)_handleLongPressMove:(UILongPressGestureRecognizer *)gr {
-    if (prefs_lockPosition) {
-        [self _resetIdleTimer];
-        return;
-    }
+- (void)_handlePositionPan:(UIPanGestureRecognizer *)gr {
     
     CGPoint location = [gr locationInView:nil];
     
@@ -699,10 +735,7 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
                 _visualContainer.alpha = 1.0;
             }
         } completion:^(BOOL finished){
-            NSMutableDictionary *posDict = [NSMutableDictionary dictionaryWithContentsOfFile:@"/var/jb/var/mobile/Library/Preferences/com.yourname.hardkeyfix.position.plist"] ?: [NSMutableDictionary dictionary];
-            posDict[@"savedEdge"] = @(finalEdge);
-            posDict[@"savedY"] = @(finalCenter.y);
-            [posDict writeToFile:@"/var/jb/var/mobile/Library/Preferences/com.yourname.hardkeyfix.position.plist" atomically:YES];
+            
             if (finalEdge == HKFDockEdgeTop) {
                 _isIdle = YES;
             }
@@ -736,6 +769,10 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     });
 }
 %end
+
+
+
+
 
 
 
