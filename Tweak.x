@@ -1,12 +1,13 @@
-@interface SBLockScreenManager : NSObject
-+ (id)sharedInstance;
-- (void)lockUIFromSource:(int)arg1 withOptions:(id)arg2;
-@end
 #import <UIKit/UIKit.h>
 #import <AVFoundation/AVFoundation.h>
 #import <MediaPlayer/MediaPlayer.h>
 #import <objc/runtime.h>
 #import <math.h>
+
+@interface SBLockScreenManager : NSObject
++ (id)sharedInstance;
+- (void)lockUIFromSource:(int)arg1 withOptions:(id)arg2;
+@end
 
 #pragma clang diagnostic ignored "-Wunguarded-availability-new"
 #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
@@ -772,6 +773,7 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     });
 }
 %end
+
 
 
 
