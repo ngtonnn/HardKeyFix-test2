@@ -404,18 +404,24 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     _buttonView.alpha = 1.0;
     _isIdle = YES;
 
-    UITapGestureRecognizer *tapGR = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(_handleDoubleTap:)];
+        UITapGestureRecognizer *tapGR = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(_handleDoubleTap:)];
     tapGR.numberOfTapsRequired = 2;
     tapGR.delaysTouchesBegan = NO;
     [_buttonView addGestureRecognizer:tapGR];
+
+    UITapGestureRecognizer *tripleTapGR = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(_handleTripleTap:)];
+    tripleTapGR.numberOfTapsRequired = 3;
+    tripleTapGR.delaysTouchesBegan = NO;
+    [_buttonView addGestureRecognizer:tripleTapGR];
+    [tapGR requireGestureRecognizerToFail:tripleTapGR];
 
     UIPanGestureRecognizer *panGR = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(_handleVolumePan:)];
     panGR.delaysTouchesBegan = NO;
     [_buttonView addGestureRecognizer:panGR];
 
-    UILongPressGestureRecognizer *longPressGR = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(_handleLongPressMove:)];
-    longPressGR.minimumPressDuration = 0.5;
-    [_buttonView addGestureRecognizer:longPressGR];
+    UILongPressGestureRecognizer *holdToLockGR = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(_handleHoldToLock:)];
+    holdToLockGR.minimumPressDuration = 0.4;
+    [_buttonView addGestureRecognizer:holdToLockGR];
 
     self.floatingWindow.hidden = NO;
     [self _resetIdleTimer];
@@ -773,6 +779,7 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     });
 }
 %end
+
 
 
 
