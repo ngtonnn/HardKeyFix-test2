@@ -513,9 +513,11 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     [_mediumFeedback impactOccurred];
     
     if (_isPositionUnlocked) {
-        _visualContainer.backgroundColor = [UIColor colorWithWhite:1.0 alpha:0.2];
+        _innerRing.backgroundColor = [UIColor colorWithWhite:1.0 alpha:0.5];
+        self.floatingWindow.transform = CGAffineTransformMakeScale(1.1, 1.1);
     } else {
-        _visualContainer.backgroundColor = [UIColor clearColor];
+        _innerRing.backgroundColor = [UIColor clearColor];
+        self.floatingWindow.transform = CGAffineTransformIdentity;
         [self _savePosition];
     }
 }
@@ -524,11 +526,15 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     if (gr.state == UIGestureRecognizerStateBegan) {
         [_heavyFeedback impactOccurred];
         
-        Class lockManagerClass = objc_getClass("SBLockScreenManager");
-        if (lockManagerClass && [lockManagerClass respondsToSelector:@selector(sharedInstance)]) {
-            id manager = [lockManagerClass sharedInstance];
-            if ([manager respondsToSelector:@selector(lockUIFromSource:withOptions:)]) {
-                [manager lockUIFromSource:1 withOptions:nil];
+        if ([(SpringBoard *)[UIApplication sharedApplication] respondsToSelector:@selector(_simulateLockButtonPress)]) {
+            [(SpringBoard *)[UIApplication sharedApplication] _simulateLockButtonPress];
+        } else {
+            Class lockManagerClass = objc_getClass("SBLockScreenManager");
+            if (lockManagerClass && [lockManagerClass respondsToSelector:@selector(sharedInstance)]) {
+                id manager = [lockManagerClass sharedInstance];
+                if ([manager respondsToSelector:@selector(lockUIFromSource:withOptions:)]) {
+                    [manager lockUIFromSource:1 withOptions:nil];
+                }
             }
         }
     }
@@ -560,6 +566,11 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
 }
 
 - (void)_handleVolumePan:(UIPanGestureRecognizer *)gr {
+    if (_isPositionUnlocked) {
+        [self _handlePositionPan:gr];
+        return;
+    }
+    
     if (!_volumeSlider) return;
     CGPoint location = [gr locationInView:nil]; 
 
@@ -779,6 +790,7 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     });
 }
 %end
+
 
 
 
