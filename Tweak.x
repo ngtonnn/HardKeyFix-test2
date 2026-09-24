@@ -256,14 +256,14 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     self.floatingWindow.bounds = CGRectMake(0, 0, newSize.width, newSize.height);
     _buttonView.frame = self.floatingWindow.bounds;
     
-    CGFloat cornerRadius = 16.0;
+    CGFloat cornerRadius = MIN(newSize.width, newSize.height) / 2.0;
     _visualContainer.frame = _buttonView.bounds;
     _visualContainer.layer.cornerRadius = cornerRadius;
     _blurView.frame = _visualContainer.bounds;
     _blurView.layer.cornerRadius = cornerRadius;
     
     _innerRing.frame = CGRectInset(_visualContainer.bounds, 4, 4);
-    _innerRing.layer.cornerRadius = 12.0;
+    _innerRing.layer.cornerRadius = MAX((cornerRadius - 4.0), 0.0);
     
     CGFloat dotLength = prefs_length * 0.4;
     _centerDot.frame = CGRectMake(newSize.width/2.0 - 2, newSize.height/2.0 - (dotLength/2.0), 4, dotLength);
@@ -377,8 +377,16 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     
     CGFloat W = [UIScreen mainScreen].bounds.size.width;
     CGFloat H = [UIScreen mainScreen].bounds.size.height;
-    [self _updateShapeForEdge:HKFDockEdgeRight]; 
-    self.floatingWindow.center = CGPointMake(W - 16.0, H / 2.0);
+    NSUserDefaults *savePrefs = [[NSUserDefaults alloc] initWithSuiteName:@"com.yourname.hardkeyfix"];
+    NSInteger savedEdge = [savePrefs integerForKey:@"savedEdge"];
+    if (savedEdge == 0) savedEdge = HKFDockEdgeRight;
+    float savedY = [savePrefs floatForKey:@"savedY"];
+    if (savedY == 0) savedY = H / 2.0;
+    
+    [self _updateShapeForEdge:(HKFDockEdge)savedEdge];
+    CGFloat padding = (prefs_width < 25) ? 12.0 : 0.0;
+    CGFloat edgeOffset = (prefs_width / 2.0) + padding;
+    self.floatingWindow.center = CGPointMake(savedEdge == HKFDockEdgeLeft ? edgeOffset : W - edgeOffset, savedY);
     
     _visualContainer.alpha = prefs_idleOpacity;
     _buttonView.alpha = 1.0;
@@ -418,9 +426,13 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
         if (_currentEdge == HKFDockEdgeTop) {
             center.y = 40.0;
         } else if (_currentEdge == HKFDockEdgeLeft) {
-            center.x = 16.0; 
+            CGFloat padding = (prefs_width < 25) ? 12.0 : 0.0;
+            CGFloat edgeOffset = (prefs_width / 2.0) + padding;
+            center.x = edgeOffset; 
         } else {
-            center.x = W - 16.0;
+            CGFloat padding = (prefs_width < 25) ? 12.0 : 0.0;
+            CGFloat edgeOffset = (prefs_width / 2.0) + padding;
+            center.x = W - edgeOffset;
         }
         
         self.floatingWindow.center = center;
@@ -457,6 +469,10 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
             _visualContainer.alpha = 1.0;
         }
     } completion:^(BOOL finished){
+            NSUserDefaults *savePrefs = [[NSUserDefaults alloc] initWithSuiteName:@"com.yourname.hardkeyfix"];
+            [savePrefs setInteger:finalEdge forKey:@"savedEdge"];
+            [savePrefs setFloat:finalCenter.y forKey:@"savedY"];
+            [savePrefs synchronize];
         _dialView.alpha = 0.0;
         _dialView.transform = CGAffineTransformMakeScale(0.1, 0.1);
         if (_currentEdge == HKFDockEdgeTop) {
@@ -616,9 +632,13 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
         if (_currentEdge == HKFDockEdgeTop) {
             popCenter.y = 40.0;
         } else if (popCenter.x < W / 2.0) {
-            popCenter.x = 16.0; 
+            CGFloat padding = (prefs_width < 25) ? 12.0 : 0.0;
+            CGFloat edgeOffset = (prefs_width / 2.0) + padding;
+            popCenter.x = edgeOffset; 
         } else { 
-            popCenter.x = W - 16.0; 
+            CGFloat padding = (prefs_width < 25) ? 12.0 : 0.0;
+            CGFloat edgeOffset = (prefs_width / 2.0) + padding;
+            popCenter.x = W - edgeOffset; 
         }
         
         [UIView animateWithDuration:0.2 delay:0 options:UIViewAnimationOptionAllowUserInteraction animations:^{
@@ -654,11 +674,15 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
         
         HKFDockEdge finalEdge;
         if (finalCenter.x < W / 2.0) {
+            CGFloat padding = (prefs_width < 25) ? 12.0 : 0.0;
+            CGFloat edgeOffset = (prefs_width / 2.0) + padding;
             finalEdge = HKFDockEdgeLeft;
-            finalCenter.x = 16.0;
+            finalCenter.x = edgeOffset;
         } else {
+            CGFloat padding = (prefs_width < 25) ? 12.0 : 0.0;
+            CGFloat edgeOffset = (prefs_width / 2.0) + padding;
             finalEdge = HKFDockEdgeRight;
-            finalCenter.x = W - 16.0;
+            finalCenter.x = W - edgeOffset;
         }
         
         CGFloat topSafeArea = 100.0;
@@ -676,6 +700,10 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
                 _visualContainer.alpha = 1.0;
             }
         } completion:^(BOOL finished){
+            NSUserDefaults *savePrefs = [[NSUserDefaults alloc] initWithSuiteName:@"com.yourname.hardkeyfix"];
+            [savePrefs setInteger:finalEdge forKey:@"savedEdge"];
+            [savePrefs setFloat:finalCenter.y forKey:@"savedY"];
+            [savePrefs synchronize];
             if (finalEdge == HKFDockEdgeTop) {
                 _isIdle = YES;
             }
@@ -709,6 +737,7 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     });
 }
 %end
+
 
 
 
