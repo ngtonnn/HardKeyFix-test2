@@ -36,9 +36,6 @@ static CGFloat prefs_idleTimeout = 0.5;
 static CGFloat prefs_width = 32.0;
 static CGFloat prefs_length = 40.0;
 
-static void reloadPrefsNotification(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
-    loadPrefs();
-}
 static void loadPrefs() {
     NSDictionary *prefs = [NSDictionary dictionaryWithContentsOfFile:@"/var/mobile/Library/Preferences/com.yourname.hardkeyfix.plist"];
     if (prefs) {
@@ -46,6 +43,9 @@ static void loadPrefs() {
         if (prefs[@"width"] != nil) prefs_width = [prefs[@"width"] doubleValue];
         if (prefs[@"length"] != nil) prefs_length = [prefs[@"length"] doubleValue];
     }
+}
+static void reloadPrefsNotification(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
+    loadPrefs();
 }
 
 @interface HKFDialView : UIView
@@ -710,6 +710,8 @@ static void loadPrefs() {
     });
 }
 %end
+
+
 
 
 
