@@ -282,6 +282,14 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     }
     if (!targetScene) {
         for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
+            if (scene.activationState == UISceneActivationStateForegroundActive && [scene isKindOfClass:[UIWindowScene class]]) {
+                targetScene = (UIWindowScene *)scene;
+                break;
+            }
+        }
+    }
+    if (!targetScene) {
+        for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
             if ([scene isKindOfClass:[UIWindowScene class]]) {
                 UIWindowScene *ws = (UIWindowScene *)scene;
                 if (ws.screen == [UIScreen mainScreen]) {
@@ -694,6 +702,7 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     });
 }
 %end
+
 
 
 
