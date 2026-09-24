@@ -35,7 +35,8 @@ static CGFloat prefs_idleOpacity = 0.3;
 static CGFloat prefs_idleTimeout = 0.5; 
 static CGFloat prefs_width = 32.0;
 static CGFloat prefs_length = 40.0;
-static static void loadPrefs() {
+static CGFloat prefs_edgePadding = 0.0;
+static void loadPrefs() {
     NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:@"com.yourname.hardkeyfix"];
     if (prefs) {
         if ([prefs objectForKey:@"idleOpacity"]) prefs_idleOpacity = [prefs doubleForKey:@"idleOpacity"];
@@ -735,6 +736,7 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     });
 }
 %end
+
 
 
 
