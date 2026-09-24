@@ -375,7 +375,6 @@ static void loadPrefs() {
     [_buttonView addSubview:_visualContainer];
     [rootVC.view addSubview:_buttonView];
     
-    CGFloat W = [UIScreen mainScreen].bounds.size.width;
     CGFloat H = [UIScreen mainScreen].bounds.size.height;
     [self _updateShapeForEdge:HKFDockEdgeRight]; 
     self.floatingWindow.center = CGPointMake(W - 16.0, H / 2.0);
@@ -647,7 +646,6 @@ static void loadPrefs() {
         }
     }
     else {
-        CGFloat W = [UIScreen mainScreen].bounds.size.width;
         CGFloat H = [UIScreen mainScreen].bounds.size.height;
         CGPoint finalCenter = self.floatingWindow.center;
         
@@ -707,6 +705,7 @@ static void loadPrefs() {
     });
 }
 %end
+
 
 
 
