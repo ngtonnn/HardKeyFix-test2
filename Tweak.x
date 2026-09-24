@@ -675,13 +675,10 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
 
 - (void)_handlePositionPan:(UIPanGestureRecognizer *)gr {
     
-    CGPoint location = [gr locationInView:nil];
-    
     if (gr.state == UIGestureRecognizerStateBegan) {
         [self _dismissDialView];
         [self _wakeUp];
         _dragStartCenter = self.floatingWindow.center;
-        _dragStartTouch = location;
         
         CGFloat W = [UIScreen mainScreen].bounds.size.width;
         CGPoint popCenter = self.floatingWindow.center;
@@ -709,9 +706,8 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
         [_mediumFeedback impactOccurred];
     }
     else if (gr.state == UIGestureRecognizerStateChanged) {
-        CGFloat dx = location.x - _dragStartTouch.x;
-        CGFloat dy = location.y - _dragStartTouch.y;
-        self.floatingWindow.center = CGPointMake(_dragStartCenter.x + dx, _dragStartCenter.y + dy);
+        CGPoint translation = [gr translationInView:nil];
+        self.floatingWindow.center = CGPointMake(_dragStartCenter.x + translation.x, _dragStartCenter.y + translation.y);
         
         CGFloat W = [UIScreen mainScreen].bounds.size.width;
     CGFloat H = [UIScreen mainScreen].bounds.size.height;
@@ -791,6 +787,7 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     });
 }
 %end
+
 
 
 
