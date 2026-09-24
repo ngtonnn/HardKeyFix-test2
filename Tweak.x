@@ -271,6 +271,7 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
 }
 
 - (void)setup {
+    if (_visualContainer) return;
     loadPrefs();
     UIWindowScene *targetScene = nil;
     if ([[UIApplication sharedApplication] respondsToSelector:@selector(statusBarWindow)]) {
@@ -284,42 +285,23 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
             if ([scene isKindOfClass:[UIWindowScene class]]) {
                 UIWindowScene *ws = (UIWindowScene *)scene;
                 if (ws.screen == [UIScreen mainScreen]) {
-                    Class homeClass = objc_getClass("SBHomeScreenWindowScene");
-                    if (!homeClass || ![ws isKindOfClass:homeClass]) {
-                        targetScene = ws;
-                        break;
-                    }
-                }
-            }
-        }
-    }
-    if (!targetScene) {
-        for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
-            if ([scene isKindOfClass:[UIWindowScene class]]) {
-                UIWindowScene *ws = (UIWindowScene *)scene;
-                if (ws.screen == [UIScreen mainScreen]) {
                     targetScene = ws;
                     break;
                 }
             }
         }
     }
-    
-    CGFloat W = [UIScreen mainScreen].bounds.size.width;
-    CGRect windowFrame = CGRectMake((W - 200.0) / 2.0, 0, 200, 32);
-    
-    if (targetScene) {
-        self.floatingWindow = [[HKFFloatingWindow alloc] initWithWindowScene:targetScene];
-        self.floatingWindow.frame = windowFrame;
-    } else {
-        self.floatingWindow = [[HKFFloatingWindow alloc] initWithFrame:windowFrame];
+    if (!targetScene) {
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            [self setup];
+        });
+        return;
     }
     
-    self.floatingWindow.backgroundColor = [UIColor clearColor];
-    self.floatingWindow.windowLevel = 10000005.0;
+    self.floatingWindow.windowScene = targetScene;
     self.floatingWindow.userInteractionEnabled = YES;
-    self.floatingWindow.clipsToBounds = NO; 
-    
+    self.floatingWindow.hidden = NO;
+    self.floatingWindow.clipsToBounds = NO;
     UIViewController *rootVC = [UIViewController new];
     rootVC.view.backgroundColor = [UIColor clearColor];
     rootVC.view.clipsToBounds = NO;
@@ -710,6 +692,8 @@ static void reloadPrefsNotification(CFNotificationCenterRef center, void *observ
     });
 }
 %end
+
+
 
 
 
