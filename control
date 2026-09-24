@@ -1,6 +1,6 @@
 Package: com.yourname.hardkeyfix
 Name: HardKeyFix
-Version: 1.0.19
+Version: 1.0.20
 Architecture: iphoneos-arm64
 Description: Volume gesture + Screenshot double-tap
 Author: ngtonnn
