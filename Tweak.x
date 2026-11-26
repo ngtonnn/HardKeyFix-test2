@@ -37,38 +37,57 @@ typedef NS_ENUM(NSInteger, HKFDockEdge) {
 };
 
 static BOOL prefs_enableSecondButton = NO;
+static NSInteger prefs_topNumberRotation = 1; // 0 = 0deg, 1 = +90deg (Landscape Left), 2 = -90deg (Landscape Right)
+static CGFloat prefs_idleTimeout = 0.5;
+
+// Main button (Button 1)
 static CGFloat prefs_idleOpacity = 0.3;
-static CGFloat prefs_idleTimeout = 0.5; 
 static CGFloat prefs_width = 32.0;
 static CGFloat prefs_length = 100.0;
 static CGFloat prefs_edgePadding = 0.0;
+
+// Second button (Button 2)
+static CGFloat prefs_idleOpacity2 = 0.3;
+static CGFloat prefs_width2 = 32.0;
+static CGFloat prefs_length2 = 100.0;
+static CGFloat prefs_edgePadding2 = 0.0;
 
 static void loadPrefs() {
     NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:@"com.yourname.hardkeyfix"];
     if (prefs) {
         if ([prefs objectForKey:@"enableSecondButton"]) prefs_enableSecondButton = [prefs boolForKey:@"enableSecondButton"];
+        if ([prefs objectForKey:@"topNumberRotation"]) prefs_topNumberRotation = [prefs integerForKey:@"topNumberRotation"];
+        
         if ([prefs objectForKey:@"idleOpacity"]) prefs_idleOpacity = [prefs doubleForKey:@"idleOpacity"];
         if ([prefs objectForKey:@"width"]) prefs_width = [prefs doubleForKey:@"width"];
         if ([prefs objectForKey:@"length"]) prefs_length = [prefs doubleForKey:@"length"];
         if ([prefs objectForKey:@"edgePadding"]) prefs_edgePadding = [prefs doubleForKey:@"edgePadding"];
+        
+        if ([prefs objectForKey:@"idleOpacity2"]) prefs_idleOpacity2 = [prefs doubleForKey:@"idleOpacity2"];
+        if ([prefs objectForKey:@"width2"]) prefs_width2 = [prefs doubleForKey:@"width2"];
+        if ([prefs objectForKey:@"length2"]) prefs_length2 = [prefs doubleForKey:@"length2"];
+        if ([prefs objectForKey:@"edgePadding2"]) prefs_edgePadding2 = [prefs doubleForKey:@"edgePadding2"];
     }
 }
 
 @interface HKFDialView : UIView
 @property (nonatomic, strong) UIView *rulerView;
 @property (nonatomic, assign) HKFDockEdge dockEdge;
-- (instancetype)initWithFrame:(CGRect)frame edge:(HKFDockEdge)edge;
+@property (nonatomic, assign) NSInteger numberRotation;
+- (instancetype)initWithFrame:(CGRect)frame edge:(HKFDockEdge)edge numberRotation:(NSInteger)rotation;
 - (void)setVolume:(float)volume;
 @end
 
 @implementation HKFDialView
 @synthesize rulerView = _rulerView;
 @synthesize dockEdge = _dockEdge;
+@synthesize numberRotation = _numberRotation;
 
-- (instancetype)initWithFrame:(CGRect)frame edge:(HKFDockEdge)edge {
+- (instancetype)initWithFrame:(CGRect)frame edge:(HKFDockEdge)edge numberRotation:(NSInteger)rotation {
     self = [super initWithFrame:frame];
     if (self) {
         _dockEdge = edge;
+        _numberRotation = rotation;
         
         self.layer.cornerRadius = 16.0;
         self.clipsToBounds = YES;
@@ -105,11 +124,17 @@ static void loadPrefs() {
             }
             
             if (isTop) {
-                // ĐỈNH: Vạch chia ở mép trên (rìa điện thoại: y = 6..24), Số ở phía dưới (phía trong màn hình: y = 26..42)
+                // ĐỈNH: Vạch chia ở mép trên (rìa điện thoại: y = 6..24), Số ở phía dưới (phía trong màn hình)
                 tick.frame = CGRectMake(i * 15, 6, 2, isMajor ? 18 : 12);
                 if (isMajor) {
-                    lbl.frame = CGRectMake(i * 15 - 16, 26, 32, 16);
+                    lbl.bounds = CGRectMake(0, 0, 32, 16);
+                    lbl.center = CGPointMake(i * 15, 39);
                     lbl.font = [UIFont boldSystemFontOfSize:11];
+                    if (rotation == 1) {
+                        lbl.transform = CGAffineTransformMakeRotation(M_PI_2);
+                    } else if (rotation == 2) {
+                        lbl.transform = CGAffineTransformMakeRotation(-M_PI_2);
+                    }
                 }
             } else if (isLeft) {
                 // MÉP TRÁI: Vạch chia ở mép trái (rìa điện thoại: x = 6..24), Số ở phía trong bên phải (x = 24..46)
@@ -253,6 +278,47 @@ static void loadPrefs() {
     CGPoint _dragStartCenter;
 }
 
+- (CGFloat)_prefIdleOpacity {
+    return (_buttonIndex == 1) ? prefs_idleOpacity : prefs_idleOpacity2;
+}
+
+- (CGFloat)_prefWidth {
+    return (_buttonIndex == 1) ? prefs_width : prefs_width2;
+}
+
+- (CGFloat)_prefLength {
+    return (_buttonIndex == 1) ? prefs_length : prefs_length2;
+}
+
+- (CGFloat)_prefEdgePadding {
+    return (_buttonIndex == 1) ? prefs_edgePadding : prefs_edgePadding2;
+}
+
+- (void)_applyDockedCenter {
+    CGFloat W = [UIScreen mainScreen].bounds.size.width;
+    CGFloat H = [UIScreen mainScreen].bounds.size.height;
+    CGFloat w = [self _prefWidth];
+    CGFloat len = [self _prefLength];
+    CGFloat pad = [self _prefEdgePadding];
+    CGPoint center = self.floatingWindow.center;
+    
+    if (_currentEdge == HKFDockEdgeTop) {
+        center.y = (w / 2.0) + pad;
+        CGFloat halfLen = len / 2.0;
+        if (center.x < halfLen) center.x = halfLen;
+        if (center.x > W - halfLen) center.x = W - halfLen;
+    } else if (_currentEdge == HKFDockEdgeLeft) {
+        center.x = (w / 2.0) + pad;
+        if (center.y < 60.0) center.y = 60.0;
+        if (center.y > H - 50.0) center.y = H - 50.0;
+    } else {
+        center.x = W - ((w / 2.0) + pad);
+        if (center.y < 60.0) center.y = 60.0;
+        if (center.y > H - 50.0) center.y = H - 50.0;
+    }
+    self.floatingWindow.center = center;
+}
+
 - (instancetype)initWithIndex:(NSInteger)index scene:(UIWindowScene *)scene {
     self = [super init];
     if (self) {
@@ -314,6 +380,10 @@ static void loadPrefs() {
         
         CGFloat W = [UIScreen mainScreen].bounds.size.width;
         CGFloat H = [UIScreen mainScreen].bounds.size.height;
+        CGFloat w = [self _prefWidth];
+        CGFloat len = [self _prefLength];
+        CGFloat pad = [self _prefEdgePadding];
+        
         NSMutableDictionary *posDict = [NSMutableDictionary dictionaryWithContentsOfFile:@"/var/mobile/Library/SpringBoard/HardKeyFixPosition.plist"];
         
         NSString *edgeKey = (_buttonIndex == 1) ? @"savedEdge" : @"savedEdge2";
@@ -321,8 +391,8 @@ static void loadPrefs() {
         NSString *xKey = (_buttonIndex == 1) ? @"savedX" : @"savedX2";
         
         NSInteger savedEdge = (_buttonIndex == 1) ? HKFDockEdgeRight : HKFDockEdgeTop;
-        CGFloat savedY = (_buttonIndex == 1) ? (H / 2.0) : ((prefs_width / 2.0) + prefs_edgePadding);
-        CGFloat savedX = (_buttonIndex == 1) ? (W - ((prefs_width / 2.0) + prefs_edgePadding)) : (W / 2.0);
+        CGFloat savedY = (_buttonIndex == 1) ? (H / 2.0) : ((w / 2.0) + pad);
+        CGFloat savedX = (_buttonIndex == 1) ? (W - ((w / 2.0) + pad)) : (W / 2.0);
         
         if (posDict) {
             if (posDict[edgeKey]) savedEdge = [posDict[edgeKey] integerValue];
@@ -334,19 +404,19 @@ static void loadPrefs() {
         [self updateShapeForEdge:_currentEdge];
         
         if (_currentEdge == HKFDockEdgeTop) {
-            CGFloat halfLen = prefs_length / 2.0;
+            CGFloat halfLen = len / 2.0;
             if (savedX < halfLen) savedX = halfLen;
             if (savedX > W - halfLen) savedX = W - halfLen;
-            self.floatingWindow.center = CGPointMake(savedX, (prefs_width / 2.0) + prefs_edgePadding);
+            self.floatingWindow.center = CGPointMake(savedX, (w / 2.0) + pad);
         } else if (_currentEdge == HKFDockEdgeLeft) {
-            CGFloat edgeOffset = (prefs_width / 2.0) + prefs_edgePadding;
+            CGFloat edgeOffset = (w / 2.0) + pad;
             self.floatingWindow.center = CGPointMake(edgeOffset, savedY);
         } else {
-            CGFloat edgeOffset = (prefs_width / 2.0) + prefs_edgePadding;
+            CGFloat edgeOffset = (w / 2.0) + pad;
             self.floatingWindow.center = CGPointMake(W - edgeOffset, savedY);
         }
         
-        _visualContainer.alpha = prefs_idleOpacity;
+        _visualContainer.alpha = [self _prefIdleOpacity];
         _buttonView.alpha = 1.0;
         _isIdle = YES;
         
@@ -385,11 +455,13 @@ static void loadPrefs() {
 - (void)updateShapeForEdge:(HKFDockEdge)edge {
     _currentEdge = edge;
     
+    CGFloat w = [self _prefWidth];
+    CGFloat len = [self _prefLength];
     CGSize newSize;
     if (edge == HKFDockEdgeTop) {
-        newSize = CGSizeMake(prefs_length, prefs_width);
+        newSize = CGSizeMake(len, w);
     } else {
-        newSize = CGSizeMake(prefs_width, prefs_length);
+        newSize = CGSizeMake(w, len);
     }
     
     self.floatingWindow.bounds = CGRectMake(0, 0, newSize.width, newSize.height);
@@ -404,7 +476,7 @@ static void loadPrefs() {
     _innerRing.frame = CGRectInset(_visualContainer.bounds, 4, 4);
     _innerRing.layer.cornerRadius = MAX((cornerRadius - 4.0), 0.0);
     
-    CGFloat dotLength = prefs_length * 0.4;
+    CGFloat dotLength = len * 0.4;
     if (edge == HKFDockEdgeTop) {
         _centerDot.frame = CGRectMake(newSize.width/2.0 - (dotLength/2.0), newSize.height/2.0 - 2, dotLength, 4);
     } else {
@@ -422,12 +494,22 @@ static void loadPrefs() {
             _idleTimer = nil;
             [_dialDismissTimer invalidate];
             _dialDismissTimer = nil;
-            [self dismissDialView];
+            if (_dialView) {
+                [_dialView removeFromSuperview];
+                _dialView = nil;
+            }
             return;
         }
     }
+    if (_dialView && _dialView.numberRotation != prefs_topNumberRotation) {
+        [_dialView removeFromSuperview];
+        _dialView = nil;
+    }
     [self updateShapeForEdge:_currentEdge];
-    [self idleTimerFired];
+    [self _applyDockedCenter];
+    if (_isIdle) {
+        _visualContainer.alpha = [self _prefIdleOpacity];
+    }
 }
 
 - (void)savePosition {
@@ -456,20 +538,8 @@ static void loadPrefs() {
     _isIdle = YES;
     
     [UIView animateWithDuration:0.4 delay:0 options:UIViewAnimationOptionCurveEaseOut | UIViewAnimationOptionAllowUserInteraction animations:^{
-        _visualContainer.alpha = prefs_idleOpacity;
-        CGFloat W = [UIScreen mainScreen].bounds.size.width;
-        CGPoint center = self.floatingWindow.center;
-        
-        if (_currentEdge == HKFDockEdgeTop) {
-            center.y = (prefs_width / 2.0) + prefs_edgePadding;
-        } else if (_currentEdge == HKFDockEdgeLeft) {
-            CGFloat edgeOffset = (prefs_width / 2.0) + prefs_edgePadding;
-            center.x = edgeOffset; 
-        } else {
-            CGFloat edgeOffset = (prefs_width / 2.0) + prefs_edgePadding;
-            center.x = W - edgeOffset;
-        }
-        self.floatingWindow.center = center;
+        _visualContainer.alpha = [self _prefIdleOpacity];
+        [self _applyDockedCenter];
     } completion:nil];
 }
 
@@ -582,14 +652,14 @@ static void loadPrefs() {
         
         CGRect dialFrame;
         if (_currentEdge == HKFDockEdgeTop) {
-            dialFrame = CGRectMake(0, 0, 260, 48);
+            dialFrame = CGRectMake(0, 0, 260, 56);
         } else {
             dialFrame = CGRectMake(0, 0, 48, 260);
         }
         
-        if (!_dialView || _dialView.dockEdge != _currentEdge) {
+        if (!_dialView || _dialView.dockEdge != _currentEdge || _dialView.numberRotation != prefs_topNumberRotation) {
             [_dialView removeFromSuperview];
-            _dialView = [[HKFDialView alloc] initWithFrame:dialFrame edge:_currentEdge];
+            _dialView = [[HKFDialView alloc] initWithFrame:dialFrame edge:_currentEdge numberRotation:prefs_topNumberRotation];
             _dialView.userInteractionEnabled = NO;
             [self.floatingWindow.rootViewController.view addSubview:_dialView];
         } else {
@@ -599,7 +669,7 @@ static void loadPrefs() {
         _dialView.transform = CGAffineTransformIdentity;
         if (_currentEdge == HKFDockEdgeTop) {
             _dialView.layer.anchorPoint = CGPointMake(0.5, 0.0);
-            _dialView.frame = CGRectMake((_buttonView.bounds.size.width - 260) / 2.0, _buttonView.bounds.size.height + 4, 260, 48);
+            _dialView.frame = CGRectMake((_buttonView.bounds.size.width - 260) / 2.0, _buttonView.bounds.size.height + 4, 260, 56);
         } else if (_currentEdge == HKFDockEdgeLeft) {
             _dialView.layer.anchorPoint = CGPointMake(0.0, 0.5);
             _dialView.frame = CGRectMake(0, (_buttonView.bounds.size.height - 260) / 2.0, 48, 260);
@@ -703,22 +773,25 @@ static void loadPrefs() {
     else {
         CGFloat W = [UIScreen mainScreen].bounds.size.width;
         CGFloat H = [UIScreen mainScreen].bounds.size.height;
+        CGFloat w = [self _prefWidth];
+        CGFloat len = [self _prefLength];
+        CGFloat pad = [self _prefEdgePadding];
         CGPoint finalCenter = self.floatingWindow.center;
         
         HKFDockEdge finalEdge;
         if (finalCenter.y < 80.0) {
             finalEdge = HKFDockEdgeTop;
-            finalCenter.y = (prefs_width / 2.0) + prefs_edgePadding;
-            CGFloat halfLen = prefs_length / 2.0;
+            finalCenter.y = (w / 2.0) + pad;
+            CGFloat halfLen = len / 2.0;
             if (finalCenter.x < halfLen) finalCenter.x = halfLen;
             if (finalCenter.x > W - halfLen) finalCenter.x = W - halfLen;
         } else {
             if (finalCenter.x < W / 2.0) {
                 finalEdge = HKFDockEdgeLeft;
-                finalCenter.x = (prefs_width / 2.0) + prefs_edgePadding;
+                finalCenter.x = (w / 2.0) + pad;
             } else {
                 finalEdge = HKFDockEdgeRight;
-                finalCenter.x = W - ((prefs_width / 2.0) + prefs_edgePadding);
+                finalCenter.x = W - ((w / 2.0) + pad);
             }
             CGFloat topSafeArea = 60.0;
             CGFloat bottomSafeArea = H - 50.0;
