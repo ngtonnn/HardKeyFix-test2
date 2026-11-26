@@ -80,6 +80,7 @@ static void loadPrefs() {
         [self addSubview:blurView];
         
         BOOL isTop = (edge == HKFDockEdgeTop);
+        BOOL isLeft = (edge == HKFDockEdgeLeft);
         
         if (isTop) {
             _rulerView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 600, frame.size.height)];
@@ -104,16 +105,25 @@ static void loadPrefs() {
             }
             
             if (isTop) {
-                tick.frame = CGRectMake(i * 15, isMajor ? 20 : 26, 2, isMajor ? 20 : 14);
+                // ĐỈNH: Vạch chia ở mép trên (rìa điện thoại: y = 6..24), Số ở phía dưới (phía trong màn hình: y = 26..42)
+                tick.frame = CGRectMake(i * 15, 6, 2, isMajor ? 18 : 12);
                 if (isMajor) {
-                    lbl.frame = CGRectMake(i * 15 - 15, 4, 32, 14);
+                    lbl.frame = CGRectMake(i * 15 - 16, 26, 32, 16);
                     lbl.font = [UIFont boldSystemFontOfSize:11];
                 }
-            } else {
-                tick.frame = CGRectMake(isMajor ? 18 : 24, i * 15, isMajor ? 20 : 14, 2);
+            } else if (isLeft) {
+                // MÉP TRÁI: Vạch chia ở mép trái (rìa điện thoại: x = 6..24), Số ở phía trong bên phải (x = 24..46)
+                tick.frame = CGRectMake(6, i * 15, isMajor ? 18 : 12, 2);
                 if (isMajor) {
-                    lbl.frame = CGRectMake(0, i * 15 - 10, 18, 20); 
-                    lbl.font = [UIFont boldSystemFontOfSize:9]; 
+                    lbl.frame = CGRectMake(24, i * 15 - 9, 22, 18);
+                    lbl.font = [UIFont boldSystemFontOfSize:10];
+                }
+            } else {
+                // MÉP PHẢI: Vạch chia ở mép phải (rìa điện thoại: x = 24..42), Số ở phía trong bên trái (x = 2..24)
+                tick.frame = CGRectMake(isMajor ? (48 - 6 - 18) : (48 - 6 - 12), i * 15, isMajor ? 18 : 12, 2);
+                if (isMajor) {
+                    lbl.frame = CGRectMake(2, i * 15 - 9, 22, 18);
+                    lbl.font = [UIFont boldSystemFontOfSize:10];
                 }
             }
             
@@ -132,9 +142,11 @@ static void loadPrefs() {
         marker.layer.shadowRadius = 2.0;
         
         if (isTop) {
-            marker.frame = CGRectMake((frame.size.width - 2) / 2.0, 16, 2, 28);
+            marker.frame = CGRectMake((frame.size.width - 2) / 2.0, 4, 2, 22);
+        } else if (isLeft) {
+            marker.frame = CGRectMake(4, (frame.size.height - 2) / 2.0, 22, 2);
         } else {
-            marker.frame = CGRectMake(16, (frame.size.height - 2) / 2.0, 28, 2);
+            marker.frame = CGRectMake(22, (frame.size.height - 2) / 2.0, 22, 2);
         }
         [self addSubview:marker];
     }
@@ -164,40 +176,30 @@ static void loadPrefs() {
 
 @implementation HKFButtonView
 - (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent *)event {
-    CGRect hitRect = CGRectInset(self.bounds, -15, -10);
+    CGRect hitRect = CGRectInset(self.bounds, -12, -8);
     return CGRectContainsPoint(hitRect, point);
 }
-
-- (UIView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event {
-    if (!self.userInteractionEnabled || self.hidden) return nil;
-    if ([self pointInside:point withEvent:event]) {
-        return self;
-    }
-    return nil;
-}
-
-- (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {}
-- (void)touchesMoved:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {}
-- (void)touchesEnded:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {}
-- (void)touchesCancelled:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {}
 @end
 
 @interface HKFFloatingWindow : UIWindow
 @end
 
 @implementation HKFFloatingWindow
-- (BOOL)_isSecure { return YES; }
-+ (BOOL)_isSecure { return YES; }
-- (BOOL)_shouldCreateContextAsSecure { return YES; }
-- (BOOL)_alwaysGetsContexts { return YES; }
 - (BOOL)_canBecomeKeyWindow { return NO; }
 - (BOOL)_canAffectStatusBarAppearance { return NO; }
 
 - (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent *)event {
     if (self.hidden || !self.userInteractionEnabled) return NO;
-    UIView *hit = [self.rootViewController.view hitTest:point withEvent:event];
-    if (!hit || hit == self.rootViewController.view) return NO;
-    return YES;
+    if (CGRectContainsPoint(self.bounds, point)) return YES;
+    
+    UIView *rootView = self.rootViewController.view;
+    for (UIView *sub in rootView.subviews) {
+        if ([sub isKindOfClass:[HKFDialView class]] && !sub.hidden && sub.alpha > 0.01) {
+            CGPoint p = [self convertPoint:point toView:sub];
+            if ([sub pointInside:p withEvent:event]) return YES;
+        }
+    }
+    return NO;
 }
 @end
 
@@ -351,20 +353,25 @@ static void loadPrefs() {
         UITapGestureRecognizer *tapGR = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(_handleDoubleTap:)];
         tapGR.numberOfTapsRequired = 2;
         tapGR.delaysTouchesBegan = NO;
+        tapGR.delaysTouchesEnded = NO;
         [_buttonView addGestureRecognizer:tapGR];
 
         UITapGestureRecognizer *tripleTapGR = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(_handleTripleTap:)];
         tripleTapGR.numberOfTapsRequired = 3;
         tripleTapGR.delaysTouchesBegan = NO;
+        tripleTapGR.delaysTouchesEnded = NO;
         [_buttonView addGestureRecognizer:tripleTapGR];
         [tapGR requireGestureRecognizerToFail:tripleTapGR];
 
         UIPanGestureRecognizer *panGR = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(_handleVolumePan:)];
         panGR.delaysTouchesBegan = NO;
+        panGR.delaysTouchesEnded = NO;
         [_buttonView addGestureRecognizer:panGR];
 
         UILongPressGestureRecognizer *holdToLockGR = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(_handleHoldToLock:)];
         holdToLockGR.minimumPressDuration = 0.4;
+        holdToLockGR.delaysTouchesBegan = NO;
+        holdToLockGR.delaysTouchesEnded = NO;
         [_buttonView addGestureRecognizer:holdToLockGR];
         
         if (_isEnabled) {
