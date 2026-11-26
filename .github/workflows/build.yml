@@ -25,10 +25,7 @@ jobs:
 
       - name: Download iOS SDK
         run: |
-          mkdir -p $HOME/theos/sdks
-          curl -L "https://github.com/theos/sdks/archive/refs/heads/master.zip" -o /tmp/sdks.zip
-          unzip -q /tmp/sdks.zip -d /tmp/sdks_out
-          mv /tmp/sdks_out/sdks-master/* $HOME/theos/sdks/
+          git clone --depth=1 https://github.com/theos/sdks.git $HOME/theos/sdks
 
       - name: Build .deb
         run: |
@@ -40,6 +37,3 @@ jobs:
         with:
           name: HardKeyFix-deb
           path: packages/*.deb
-
-
-
